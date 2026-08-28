@@ -58,3 +58,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .markdown pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .markdown ul:has(input[type="checkbox"]) {
+    @apply list-none pl-0;
+  }
+
+  .markdown li:has(input[type="checkbox"]) {
+    @apply flex items-start gap-2;
+  }
+}

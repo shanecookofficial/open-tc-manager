@@ -124,10 +124,11 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-1 · Markdown components
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M0-1
+- **Owner:** Composer · **Status:** done · **Needs:** M0-1
 - `<Markdown>` render component (`react-markdown` + `remark-gfm` + `rehype-sanitize`,
   strict schema) and `<MarkdownEditor>` (textarea + write/preview tabs).
 - **Accept:** unit tests: GFM table renders; `<script>` and `onerror` payloads render inert.
+- _Built against live API context (M2 complete); no fixture dependency for this task._
 
 ### M3-2 · App shell, project switcher & repository view
 
