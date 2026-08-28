@@ -213,7 +213,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M4-2 · Setup & user docs
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M4-1
+- **Owner:** Composer · **Status:** done · **Needs:** M4-1
 - `docs/SETUP.md`: (a) Docker quickstart; (b) **manual Postgres guide** — install,
   `CREATE DATABASE`/`CREATE USER`/`GRANT` copy-paste block, `DATABASE_URL` format,
   `.env` file walkthrough, migrate, run; (c) upgrade & backup notes; (d) a prominent
@@ -223,6 +223,9 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   owner. Short
   `docs/USER_GUIDE.md` with screenshots incl. trash & bulk delete flows.
 - **Accept:** M4-3 passes.
+- _Manual Postgres path rehearsed clean-room from `docs/SETUP.md` Part B (clone →
+  migrate:prod → build → start:standalone → health + seeded pages). Docker path
+  syntax-validated against Dockerfile and docker-compose.prod.yml (image build in CI)._
 
 ### M4-3 · Adversarial docs walkthrough
 
