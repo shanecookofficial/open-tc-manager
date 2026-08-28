@@ -147,3 +147,14 @@ query `deleted_at IS NOT NULL`. Purge's DELETE also includes
 removed even if targeting were wrong. Restore (single and bulk) keeps
 `directoryId` when that folder still belongs to the project, otherwise
 null (root).
+
+---
+
+**2026-08-28 — UI data fetching (M3-2).** Client components call the live
+REST API via `src/lib/api-client/` (typed `fetch` + Zod response parse).
+A small `useAsyncData` hook (`src/hooks/use-async-data.ts`) refetches when
+query-key deps change (SWR-style, no extra library). Server components that
+need initial data import `@/lib/api/*` directly (same serializers as the
+HTTP layer) because relative `fetch` has no origin during RSC render.
+Repository filters live in URL search params (`dir`, `q`, `page`,
+`pageSize`) for deep links and Playwright stability.

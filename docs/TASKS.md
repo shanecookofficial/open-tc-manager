@@ -132,13 +132,13 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-2 · App shell, project switcher & repository view
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M1-2
+- **Owner:** Composer · **Status:** done · **Needs:** M1-2
 - Layout with header + project switcher (create/edit dialogs incl. prefix-change
   warning; zero-project onboarding screen) + collapsible directory tree sidebar
   (counts, keyboard navigable, trash link with count) + paginated case list (number,
   title, step count, updated) + search box + empty states.
 - **Accept:** Playwright drives project create/switch, tree selection, search, and
-  pagination against fixtures.
+  pagination against the live API + seeded data (adapted from fixtures).
 
 ### M3-3 · Case detail view
 
