@@ -89,10 +89,18 @@ test.describe("Selection mode and bulk trash", () => {
       });
     }
 
-    await page.reload();
-    await expect(
-      page.getByRole("link", { name: new RegExp(`${prefix}-1`, "i"), exact: true }),
-    ).toBeVisible({ timeout: 10_000 });
+    const listLoaded = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/v1/test-cases") &&
+        response.request().method() === "GET" &&
+        response.ok(),
+    );
+    await page.goto(`/p/${prefix}`);
+    await listLoaded;
+    const caseLinks = page.getByRole("link", {
+      name: new RegExp(`^${prefix}-\\d+$`),
+    });
+    await expect(caseLinks).toHaveCount(2);
     await page.getByRole("button", { name: "Select cases" }).click();
     await page.getByLabel("Select all on this page").click();
     await expect(page.getByText("2 selected")).toBeVisible({ timeout: 10_000 });

@@ -187,12 +187,15 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-8 · Integration: UI on real API
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M2-2..M2-5, M3-3..M3-7
+- **Owner:** Composer · **Status:** done · **Needs:** M2-2..M2-5, M3-3..M3-7
 - Swap fixtures for live endpoints; wire loading/error/toast states; fix contract
   mismatches (via `contract-change` if the contract itself is wrong).
 - **Accept:** full e2e gate journey green in CI against a seeded database:
   create project → create dir → create case (markdown steps) → view → edit/reorder →
   move → trash → restore → trash again → purge via typed confirm.
+- _Fixture-swap superseded: UI was built directly on the live API from M3-2 onward.
+  M3-8 adds loading skeletons, async error toasts with retry, consistent empty states,
+  mutation refetch (tree/trash counts), and the gate-journey Playwright spec._
 
 ## M4 — Deployment & docs
 
