@@ -36,7 +36,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M1 — Contract (freeze before M2/M3 fan-out)
 
 ### M1-1 · Schema & migrations
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M0-2
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M0-2
 - Drizzle schema for `projects`, `directories`, `test_cases`, `test_steps` exactly per
   PLAN §5 (per-project prefix + counter, `deleted_at`, constraints, deferred uniques,
   cascades, `ON DELETE SET NULL` for trashed-case directories). Generated SQL migration

@@ -1,13 +1,13 @@
-import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [react()],
   test: {
-    environment: "jsdom",
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["src/**/*.integration.test.ts"],
+    environment: "node",
+    include: ["src/**/*.integration.test.ts"],
+    fileParallelism: false,
+    maxWorkers: 1,
+    testTimeout: 30_000,
   },
   resolve: {
     alias: {

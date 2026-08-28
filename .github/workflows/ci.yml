@@ -52,5 +52,11 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      - name: Apply database migrations
+        run: npm run db:migrate
+
+      - name: Integration tests
+        run: npm run test:integration
+
       - name: Build
         run: npm run build

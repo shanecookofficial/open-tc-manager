@@ -82,8 +82,13 @@ npm run dev
 
 Open http://localhost:3000.
 
-Database migrations and seed data are added in milestone M1 (`npm run db:migrate`,
-`npm run db:seed`). Until then the app does not open a database connection.
+After `npm ci`, apply migrations before running anything that talks to Postgres:
+
+```bash
+npm run db:migrate
+```
+
+Seed data is added in task M1-3 (`npm run db:seed`).
 
 ## npm scripts
 
@@ -94,7 +99,10 @@ Database migrations and seed data are added in milestone M1 (`npm run db:migrate
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
-| `npm run test` | Vitest unit tests |
+| `npm run test` | Vitest unit tests (does not require Postgres) |
+| `npm run test:integration` | Constraint tests against a live Postgres (`DATABASE_URL`) |
+| `npm run db:generate` | Generate a SQL migration from `src/lib/db/schema.ts` |
+| `npm run db:migrate` | Apply pending migrations to `DATABASE_URL` |
 
 ## Troubleshooting
 

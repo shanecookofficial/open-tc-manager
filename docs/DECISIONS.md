@@ -41,3 +41,17 @@ this is a non-commercial open-source project in a different domain, nothing is b
 sold, and the README and user-facing surfaces spell out "Open Test Case Manager" to
 avoid confusion. This supersedes the "TestTrove" working title from round 1. The name
 question is closed; no open product questions remain.
+
+---
+
+**2026-08-28 — Schema mapping (M1-1).** PLAN §5 is implemented in
+`src/lib/db/schema.ts` with a plain-SQL migration in `drizzle/0000_init.sql`.
+IDs are PostgreSQL `BIGINT GENERATED ALWAYS AS IDENTITY`, mapped in Drizzle as
+`bigint({ mode: "number" })` so JSON APIs can use numbers rather than BigInt.
+`projects.next_case_number` is a counter column (atomic `UPDATE … RETURNING`);
+no Postgres sequence is used for case numbers. The only schema.ts ↔ SQL
+divergence is `UNIQUE (test_case_id, position) DEFERRABLE INITIALLY DEFERRED`
+on `test_steps`: drizzle-orm 0.45 cannot emit `DEFERRABLE`, so that clause is
+a hand-edit of the generated migration. `UNIQUE NULLS NOT DISTINCT` on
+directories, prefix/length CHECKs, cascades, and `ON DELETE SET NULL` are all
+expressed in schema.ts and emitted by drizzle-kit.
