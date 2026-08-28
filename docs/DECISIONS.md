@@ -97,3 +97,15 @@ they do not boot `next dev`. The shared `pg` pool is closed once by
 `src/zz-integration-teardown.integration.test.ts` (filename sorts last)
 so multiple `*.integration.test.ts` files can share it; schema tests no
 longer call `pool.end()` themselves.
+
+---
+
+**2026-08-28 — Project numbering (M2-2).** Case numbers are allocated by
+`allocateCaseNumber` (`src/lib/api/numbering.ts`): `UPDATE projects SET
+next_case_number = next_case_number + 1 … RETURNING` inside the caller's
+transaction. The row lock serializes concurrent creates; a rollback also
+rolls back the counter, so failed creates do not burn numbers. Prefix
+and name clashes map from Postgres unique violations
+(`projects_prefix_unique` → `PREFIX_TAKEN`, `projects_name_unique` →
+`NAME_TAKEN`) rather than a pre-check, so the unique index is the source
+of truth under races.

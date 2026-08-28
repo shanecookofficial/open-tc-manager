@@ -82,7 +82,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M2-2 · Project endpoints
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M2-1
 - List/create/update/delete projects, incl. prefix validation and uniqueness, atomic
   counter behavior, and delete-only-when-empty (no active or trashed cases).
 - **Accept:** integration tests for prefix rules, rename/reprefix (numbers unchanged,
