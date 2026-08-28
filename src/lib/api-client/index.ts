@@ -299,6 +299,16 @@ export async function purgeTrash(
   return parseJson(response, bulkCountResponseSchema);
 }
 
+/**
+ * Spread into `{ all: true }` payloads. An empty filter is omitted so the
+ * body matches the contract example `{ "all": true }` (whole project).
+ */
+export function optionalBulkFilter(
+  filter: BulkFilter,
+): { filter: BulkFilter } | Record<string, never> {
+  return Object.keys(filter).length > 0 ? { filter } : {};
+}
+
 /** Split server validation messages on the first ": " for form field mapping. */
 export function parseValidationFieldPath(message: string): {
   fieldPath: string;

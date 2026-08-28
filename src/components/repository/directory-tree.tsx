@@ -41,6 +41,10 @@ type DirectoryTreeProps = {
   manageMode?: boolean;
   onManageAction?: (action: DirectoryManageAction) => void;
   excludeIds?: Set<number>;
+  /** Root row label. Defaults to "All test cases" (or "Project root" in placement mode). */
+  rootLabel?: string;
+  /** Per-folder counts come from the tree's activeCaseCount. Hide them when those numbers would mislead (trash view). */
+  showNodeCounts?: boolean;
 };
 
 function TreeNodeRow({
@@ -53,6 +57,7 @@ function TreeNodeRow({
   onKeyNavigate,
   manageMode,
   onManageAction,
+  showNodeCounts,
 }: {
   node: TreeNode;
   depth: number;
@@ -63,6 +68,7 @@ function TreeNodeRow({
   onKeyNavigate: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
   manageMode?: boolean;
   onManageAction?: (action: DirectoryManageAction) => void;
+  showNodeCounts: boolean;
 }) {
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(node.id);
@@ -108,9 +114,11 @@ function TreeNodeRow({
           <span className={cn("flex-1 truncate", selected && "font-medium")}>
             {node.name}
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {node.activeCaseCount}
-          </span>
+          {showNodeCounts ? (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {node.activeCaseCount}
+            </span>
+          ) : null}
         </button>
         {manageMode && onManageAction ? (
           <DropdownMenu>
@@ -168,6 +176,7 @@ function TreeNodeRow({
               onKeyNavigate={onKeyNavigate}
               manageMode={manageMode}
               onManageAction={onManageAction}
+              showNodeCounts={showNodeCounts}
             />
           ))
         : null}
@@ -184,6 +193,8 @@ export function DirectoryTree({
   manageMode = false,
   onManageAction,
   excludeIds,
+  rootLabel,
+  showNodeCounts = true,
 }: DirectoryTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const visibleDirectories = filterExcludedNodes(directories, excludeIds);
@@ -235,7 +246,7 @@ export function DirectoryTree({
         >
           <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
           <span className={cn("flex-1 truncate", rootSelected && "font-medium")}>
-            {placementMode ? "Project root" : "All test cases"}
+            {rootLabel ?? (placementMode ? "Project root" : "All test cases")}
           </span>
           {!placementMode ? (
             <span className="text-xs text-muted-foreground tabular-nums">
@@ -281,6 +292,7 @@ export function DirectoryTree({
           onKeyNavigate={handleKeyNavigate}
           manageMode={manageMode}
           onManageAction={onManageAction}
+          showNodeCounts={showNodeCounts}
         />
       ))}
     </nav>
@@ -361,4 +373,18 @@ export function directorySelectionToApiFilter(
   if (selection.type === "all") return undefined;
   if (selection.type === "root") return null;
   return selection.id;
+}
+
+/** Stable key for the list/trash filter so selection cannot outlive it. */
+export function directoryFilterKey(
+  directoryId: number | null | undefined,
+  q: string,
+): string {
+  const dirPart =
+    directoryId === undefined
+      ? "all"
+      : directoryId === null
+        ? "root"
+        : String(directoryId);
+  return `${dirPart}:${q.trim()}`;
 }

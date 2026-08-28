@@ -13,6 +13,7 @@ import {
   directoryParamToSelection,
   directorySelectionToApiFilter,
   directorySelectionToParam,
+  directoryFilterKey,
   DirectoryTree,
 } from "@/components/repository/directory-tree";
 import { Button } from "@/components/ui/button";
@@ -38,13 +39,14 @@ import {
   permanentlyDeleteTestCase,
   purgeTrash,
   restoreTestCase,
+  optionalBulkFilter,
 } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/format-date";
 import type { BulkFilter, Project, TestCaseSummary } from "@/lib/contracts";
 
 type TrashSelectionScope =
-  | { type: "ids"; ids: Set<number> }
-  | { type: "all"; count: number };
+  | { type: "ids"; ids: Set<number>; filterKey: string }
+  | { type: "all"; count: number; filterKey: string };
 
 type TrashViewProps = {
   project: Project;
@@ -112,9 +114,9 @@ export function TrashView({ project }: TrashViewProps) {
 
   const handleMutated = useCallback(() => {
     setRefreshKey((key) => key + 1);
-    refetchTree();
-    refetch();
-  }, [refetch, refetchTree]);
+  }, []);
+
+  const filterKey = directoryFilterKey(directoryId, debouncedQ);
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -128,15 +130,18 @@ export function TrashView({ project }: TrashViewProps) {
     [router, project.prefix, searchParams],
   );
 
+  const activeScope =
+    selectedScope?.filterKey === filterKey ? selectedScope : null;
+
   const selectedCount =
-    selectedScope?.type === "all"
-      ? selectedScope.count
-      : selectedScope?.type === "ids"
-        ? selectedScope.ids.size
+    activeScope?.type === "all"
+      ? activeScope.count
+      : activeScope?.type === "ids"
+        ? activeScope.ids.size
         : 0;
 
   const selectedIds =
-    selectedScope?.type === "ids" ? selectedScope.ids : new Set<number>();
+    activeScope?.type === "ids" ? activeScope.ids : new Set<number>();
 
   const hasActiveFilter =
     debouncedQ.trim().length > 0 ||
@@ -149,20 +154,21 @@ export function TrashView({ project }: TrashViewProps) {
     (hasActiveFilter || trashList.totalItems > visibleIds.length);
   const pageAllSelected =
     visibleIds.length > 0 &&
-    selectedScope?.type === "ids" &&
-    visibleIds.every((id) => selectedScope.ids.has(id));
+    activeScope?.type === "ids" &&
+    visibleIds.every((id) => activeScope.ids.has(id));
   const pageSomeSelected =
-    selectedScope?.type === "ids" &&
-    visibleIds.some((id) => selectedScope.ids.has(id));
+    activeScope?.type === "ids" &&
+    visibleIds.some((id) => activeScope.ids.has(id));
 
   const togglePage = (checked: boolean) => {
     setSelectedScope((prev) => {
-      const ids = new Set(prev?.type === "ids" ? prev.ids : []);
+      const current = prev?.filterKey === filterKey ? prev : null;
+      const ids = new Set(current?.type === "ids" ? current.ids : []);
       for (const id of visibleIds) {
         if (checked) ids.add(id);
         else ids.delete(id);
       }
-      return ids.size > 0 ? { type: "ids", ids } : null;
+      return ids.size > 0 ? { type: "ids", ids, filterKey } : null;
     });
   };
 
@@ -189,18 +195,18 @@ export function TrashView({ project }: TrashViewProps) {
   };
 
   const handleBulkRestore = async () => {
-    if (!selectedScope || selectedCount === 0) return;
+    if (!activeScope || selectedCount === 0) return;
     try {
       const result =
-        selectedScope.type === "all"
+        activeScope.type === "all"
           ? await bulkRestore({
               projectId: project.id,
               all: true,
-              filter: currentFilter,
+              ...optionalBulkFilter(currentFilter),
             })
           : await bulkRestore({
               projectId: project.id,
-              ids: Array.from(selectedScope.ids),
+              ids: Array.from(activeScope.ids),
             });
       toast.success(`Restored ${result.count} test case(s)`);
       exitSelectionMode();
@@ -219,14 +225,15 @@ export function TrashView({ project }: TrashViewProps) {
         await permanentlyDeleteTestCase(typedConfirm.testCase.id);
         toast.success(`${typedConfirm.testCase.displayNumber} permanently deleted`);
       } else {
+        if (!activeScope || selectedCount === 0) return;
         const result =
-          selectedScope?.type === "all"
+          activeScope.type === "all"
             ? await purgeTrash(project.id, {
                 all: true,
-                filter: currentFilter,
+                ...optionalBulkFilter(currentFilter),
               })
             : await purgeTrash(project.id, {
-                ids: Array.from(selectedScope?.type === "ids" ? selectedScope.ids : []),
+                ids: Array.from(activeScope.ids),
               });
         toast.success(`Permanently deleted ${result.count} test case(s)`);
         exitSelectionMode();
@@ -268,6 +275,8 @@ export function TrashView({ project }: TrashViewProps) {
                   page: "1",
                 })
               }
+              rootLabel="All trashed cases"
+              showNodeCounts={false}
             />
           ) : (
             <div className="space-y-2">
@@ -315,6 +324,7 @@ export function TrashView({ project }: TrashViewProps) {
                     setSelectedScope({
                       type: "all",
                       count: trashList.totalItems,
+                      filterKey,
                     })
                   }
                 >
@@ -388,12 +398,26 @@ export function TrashView({ project }: TrashViewProps) {
                           checked={selectedIds.has(testCase.id)}
                           onCheckedChange={(checked) => {
                             setSelectedScope((prev) => {
+                              const current =
+                                prev?.filterKey === filterKey ? prev : null;
+                              if (current?.type === "all") {
+                                const ids = new Set(
+                                  (trashList?.items ?? [])
+                                    .map((item) => item.id)
+                                    .filter((itemId) => itemId !== testCase.id),
+                                );
+                                return ids.size > 0
+                                  ? { type: "ids", ids, filterKey }
+                                  : null;
+                              }
                               const ids = new Set(
-                                prev?.type === "ids" ? prev.ids : [],
+                                current?.type === "ids" ? current.ids : [],
                               );
                               if (checked) ids.add(testCase.id);
                               else ids.delete(testCase.id);
-                              return ids.size > 0 ? { type: "ids", ids } : null;
+                              return ids.size > 0
+                                ? { type: "ids", ids, filterKey }
+                                : null;
                             });
                           }}
                           aria-label={`Select ${testCase.displayNumber}`}
@@ -443,10 +467,21 @@ export function TrashView({ project }: TrashViewProps) {
             </Table>
           ) : (
             <div className="p-8 text-center">
-              <h2 className="text-lg font-medium">Trash is empty</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Deleted test cases will appear here.
-              </p>
+              {debouncedQ.trim() || directorySelection.type !== "all" ? (
+                <>
+                  <h2 className="text-lg font-medium">No matching trashed cases</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Try a different search term or choose another folder.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-medium">Trash is empty</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Deleted test cases will appear here.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>

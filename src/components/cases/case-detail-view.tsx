@@ -90,7 +90,7 @@ export function CaseDetailView({ testCase, project }: CaseDetailViewProps) {
               {currentCase.displayNumber}
             </Badge>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="break-words text-2xl font-semibold tracking-tight">
             {currentCase.title}
           </h1>
         </div>

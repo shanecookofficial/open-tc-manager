@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+import { cleanupE2ECase } from "./helpers";
+
 test.describe("Case detail view", () => {
+  let createdCaseId: number | undefined;
+
+  test.afterEach(async ({ request }) => {
+    await cleanupE2ECase(request, createdCaseId);
+    createdCaseId = undefined;
+  });
+
   test("renders markdown-heavy seeded case with code block and 22 steps", async ({
     page,
   }) => {
@@ -41,7 +50,11 @@ test.describe("Case detail view", () => {
         steps: [{ action: "Perform the action" }],
       },
     });
-    const created = (await createResponse.json()) as { displayNumber: string };
+    const created = (await createResponse.json()) as {
+      id: number;
+      displayNumber: string;
+    };
+    createdCaseId = created.id;
 
     await page.goto(`/cases/${created.displayNumber}`);
     await page.getByRole("button", { name: "Delete" }).click();
@@ -51,5 +64,39 @@ test.describe("Case detail view", () => {
     await expect(
       page.getByRole("link", { name: created.displayNumber, exact: true }),
     ).not.toBeVisible();
+  });
+
+  test("hostile markdown is inert in the rendered case", async ({
+    page,
+    request,
+  }) => {
+    const projectsResponse = await request.get("/api/v1/projects");
+    const projects = (await projectsResponse.json()) as {
+      items: { id: number; prefix: string }[];
+    };
+    const web = projects.items.find((item) => item.prefix === "WEB");
+    expect(web).toBeTruthy();
+
+    const createResponse = await request.post("/api/v1/test-cases", {
+      data: {
+        projectId: web!.id,
+        title: "XSS probe",
+        description:
+          "<script>alert('xss')</script>\n[click](javascript:alert(1))\n<img src=x onerror=alert(1)>",
+        steps: [{ action: "<script>alert(1)</script>" }],
+      },
+    });
+    const created = (await createResponse.json()) as {
+      id: number;
+      displayNumber: string;
+    };
+    createdCaseId = created.id;
+
+    await page.goto(`/cases/${created.displayNumber}`);
+    const markdown = page.locator(".markdown");
+    await expect(markdown.first()).toBeVisible();
+    await expect(markdown.locator("script")).toHaveCount(0);
+    await expect(markdown.locator("[href^='javascript:']")).toHaveCount(0);
+    await expect(markdown.locator("img[onerror]")).toHaveCount(0);
   });
 });

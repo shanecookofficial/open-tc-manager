@@ -53,7 +53,7 @@ export function MoveCaseDialog({
     try {
       const directoryId = directorySelectionToApiFilter(selection) ?? null;
       const updated = await moveTestCase(testCase.id, { directoryId });
-      toast.success(`Moved to ${updated.displayNumber}`);
+      toast.success(`Moved ${updated.displayNumber}`);
       onMoved(updated);
       onOpenChange(false);
     } catch (error) {

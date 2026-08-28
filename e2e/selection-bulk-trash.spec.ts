@@ -1,16 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-function uniquePrefix() {
-  const suffix = Date.now().toString(36).slice(-4).toUpperCase();
-  return `S${suffix}`.slice(0, 10);
-}
+import { cleanupE2EProjectByPrefix, uniquePrefix } from "./helpers";
 
 test.describe("Selection mode and bulk trash", () => {
+  let createdPrefix: string | undefined;
+
+  test.afterEach(async ({ request }) => {
+    await cleanupE2EProjectByPrefix(request, createdPrefix);
+    createdPrefix = undefined;
+  });
+
   test("filter, select-all-matching, bulk trash updates list and trash count", async ({
     page,
     request,
   }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("S");
+    createdPrefix = prefix;
     const name = `Select E2E ${prefix}`;
 
     await page.goto("/");
@@ -66,7 +71,8 @@ test.describe("Selection mode and bulk trash", () => {
   });
 
   test("page checkbox selects a subset", async ({ page, request }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("S");
+    createdPrefix = prefix;
     await page.goto("/");
     await page.getByRole("button", { name: /Select project|Web App|API/i }).click();
     await page.getByRole("menuitem", { name: "Create project…" }).click();

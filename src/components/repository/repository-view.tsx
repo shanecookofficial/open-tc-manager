@@ -15,6 +15,7 @@ import {
   directoryParamToSelection,
   directorySelectionToApiFilter,
   directorySelectionToParam,
+  directoryFilterKey,
   type DirectorySelection,
 } from "@/components/repository/directory-tree";
 import {
@@ -31,12 +32,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAsyncData, useDebouncedValue } from "@/hooks/use-async-data";
 import { useAsyncErrorToast } from "@/components/ui/async-error-toast";
-import { ApiClientError, bulkTrash, getProjectTree, listTestCases } from "@/lib/api-client";
+import { ApiClientError, bulkTrash, getProjectTree, listTestCases, optionalBulkFilter } from "@/lib/api-client";
 import type { BulkFilter, Project } from "@/lib/contracts";
 
 type SelectionScope =
-  | { type: "ids"; ids: Set<number> }
-  | { type: "all"; count: number };
+  | { type: "ids"; ids: Set<number>; filterKey: string }
+  | { type: "all"; count: number; filterKey: string };
 
 type RepositoryViewProps = {
   project: Project;
@@ -104,9 +105,9 @@ export function RepositoryView({ project }: RepositoryViewProps) {
 
   const handleMutated = () => {
     setRefreshKey((key) => key + 1);
-    refetchTree();
-    refetchList();
   };
+
+  const filterKey = directoryFilterKey(directoryId, debouncedQ);
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -130,14 +131,17 @@ export function RepositoryView({ project }: RepositoryViewProps) {
     });
   };
 
+  const activeScope =
+    selectedScope?.filterKey === filterKey ? selectedScope : null;
+
   const selectedIds =
-    selectedScope?.type === "ids" ? selectedScope.ids : new Set<number>();
+    activeScope?.type === "ids" ? activeScope.ids : new Set<number>();
 
   const selectedCount =
-    selectedScope?.type === "all"
-      ? selectedScope.count
-      : selectedScope?.type === "ids"
-        ? selectedScope.ids.size
+    activeScope?.type === "all"
+      ? activeScope.count
+      : activeScope?.type === "ids"
+        ? activeScope.ids.size
         : 0;
 
   const hasActiveFilter =
@@ -151,11 +155,11 @@ export function RepositoryView({ project }: RepositoryViewProps) {
     (hasActiveFilter || caseList.totalItems > visibleIds.length);
   const pageAllSelected =
     visibleIds.length > 0 &&
-    selectedScope?.type === "ids" &&
-    visibleIds.every((id) => selectedScope.ids.has(id));
+    activeScope?.type === "ids" &&
+    visibleIds.every((id) => activeScope.ids.has(id));
   const pageSomeSelected =
-    selectedScope?.type === "ids" &&
-    visibleIds.some((id) => selectedScope.ids.has(id));
+    activeScope?.type === "ids" &&
+    visibleIds.some((id) => activeScope.ids.has(id));
 
   const exitSelectionMode = () => {
     setSelectionMode(false);
@@ -164,52 +168,54 @@ export function RepositoryView({ project }: RepositoryViewProps) {
 
   const toggleCase = (id: number, checked: boolean) => {
     setSelectedScope((prev) => {
-      if (prev?.type === "all") {
+      const current = prev?.filterKey === filterKey ? prev : null;
+      if (current?.type === "all") {
         const ids = new Set(
           (caseList?.items ?? [])
             .map((item) => item.id)
             .filter((itemId) => itemId !== id),
         );
-        return ids.size > 0 ? { type: "ids", ids } : null;
+        return ids.size > 0 ? { type: "ids", ids, filterKey } : null;
       }
-      const ids = new Set(prev?.type === "ids" ? prev.ids : []);
+      const ids = new Set(current?.type === "ids" ? current.ids : []);
       if (checked) ids.add(id);
       else ids.delete(id);
-      return ids.size > 0 ? { type: "ids", ids } : null;
+      return ids.size > 0 ? { type: "ids", ids, filterKey } : null;
     });
   };
 
   const togglePage = (checked: boolean) => {
     setSelectedScope((prev) => {
-      const ids = new Set(prev?.type === "ids" ? prev.ids : []);
+      const current = prev?.filterKey === filterKey ? prev : null;
+      const ids = new Set(current?.type === "ids" ? current.ids : []);
       for (const id of visibleIds) {
         if (checked) ids.add(id);
         else ids.delete(id);
       }
-      return ids.size > 0 ? { type: "ids", ids } : null;
+      return ids.size > 0 ? { type: "ids", ids, filterKey } : null;
     });
   };
 
   const selectAllMatching = () => {
     if (!caseList) return;
-    setSelectedScope({ type: "all", count: caseList.totalItems });
+    setSelectedScope({ type: "all", count: caseList.totalItems, filterKey });
   };
 
   const handleBulkTrash = async () => {
-    if (!selectedScope || selectedCount === 0) return;
+    if (!activeScope || selectedCount === 0) return;
     setIsTrashing(true);
     try {
       let result: { count: number };
-      if (selectedScope.type === "all") {
+      if (activeScope.type === "all") {
         result = await bulkTrash({
           projectId: project.id,
           all: true,
-          filter: currentFilter,
+          ...optionalBulkFilter(currentFilter),
         });
       } else {
         result = await bulkTrash({
           projectId: project.id,
-          ids: Array.from(selectedScope.ids),
+          ids: Array.from(activeScope.ids),
         });
       }
       toast.success(`Moved ${result.count} test case(s) to trash`);

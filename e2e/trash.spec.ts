@@ -1,16 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-function uniquePrefix() {
-  const suffix = Date.now().toString(36).slice(-4).toUpperCase();
-  return `T${suffix}`.slice(0, 10);
-}
+import { cleanupE2EProjectByPrefix, uniquePrefix } from "./helpers";
 
 test.describe("Trash view", () => {
+  let createdPrefix: string | undefined;
+
+  test.afterEach(async ({ request }) => {
+    await cleanupE2EProjectByPrefix(request, createdPrefix);
+    createdPrefix = undefined;
+  });
+
   test("restore, permanent delete, bulk purge, and cancel typed confirm", async ({
     page,
     request,
   }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("T");
+    createdPrefix = prefix;
     await page.goto("/");
     await page.getByRole("button", { name: /Select project|Web App|API/i }).click();
     await page.getByRole("menuitem", { name: "Create project…" }).click();

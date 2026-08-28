@@ -1,15 +1,20 @@
 import { expect, test } from "@playwright/test";
 
-function uniquePrefix() {
-  const suffix = Date.now().toString(36).slice(-4).toUpperCase();
-  return `E${suffix}`.slice(0, 10);
-}
+import { cleanupE2EProjectByPrefix, uniquePrefix } from "./helpers";
 
 test.describe("Case editor", () => {
+  let createdPrefix: string | undefined;
+
+  test.afterEach(async ({ request }) => {
+    await cleanupE2EProjectByPrefix(request, createdPrefix);
+    createdPrefix = undefined;
+  });
+
   test("creates case with 3 steps including reorder and persists order", async ({
     page,
   }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("E");
+    createdPrefix = prefix;
     const projectName = `Editor E2E ${prefix}`;
 
     await page.goto("/");

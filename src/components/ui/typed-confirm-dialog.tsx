@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,47 +37,65 @@ export function TypedConfirmDialog({
 }: TypedConfirmDialogProps) {
   const [value, setValue] = useState("");
 
+  const trimmed = value.trim();
+  const typedDelete = trimmed.toUpperCase() === "DELETE";
+  // PLAN §7 / M3-7: permanent delete accepts the stated token or the word DELETE.
   const matches =
-    requiredText === "DELETE"
-      ? value.trim().toUpperCase() === "DELETE"
-      : value.trim() === requiredText;
+    typedDelete || (requiredText !== "" && trimmed === requiredText);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) setValue("");
     onOpenChange(next);
   };
 
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!matches || isSubmitting) return;
+    void onConfirm();
+  };
+
+  const tokenHint =
+    requiredText && requiredText !== "DELETE"
+      ? `${requiredText} or DELETE`
+      : requiredText || "DELETE";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-2 py-2">
-          <Label htmlFor="typed-confirm">
-            Type <span className="font-mono font-semibold">{requiredText}</span> to
-            confirm
-          </Label>
-          <Input
-            id="typed-confirm"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            autoComplete="off"
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={!matches || isSubmitting}
-            onClick={() => void onConfirm()}
-          >
-            {isSubmitting ? "Deleting…" : confirmLabel}
-          </Button>
-        </DialogFooter>
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="typed-confirm">
+              Type <span className="font-mono font-semibold">{tokenHint}</span> to
+              confirm
+            </Label>
+            <Input
+              id="typed-confirm"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={!matches || isSubmitting}
+            >
+              {isSubmitting ? "Deleting…" : confirmLabel}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

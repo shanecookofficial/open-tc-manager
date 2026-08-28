@@ -37,4 +37,25 @@ describe("Markdown", () => {
     expect(img).toBeTruthy();
     expect(img?.getAttribute("onerror")).toBeNull();
   });
+
+  it("does not honor javascript: hrefs", () => {
+    const source = `[click me](javascript:alert(1))`;
+
+    const { container } = render(<Markdown>{source}</Markdown>);
+
+    expect(container.querySelector("a[href^='javascript:']")).toBeNull();
+    expect(container.querySelector("a[href*='alert']")).toBeNull();
+  });
+
+  it("strips raw HTML img onerror payloads", () => {
+    const source = `<img src="x" onerror="alert(1)">`;
+
+    const { container } = render(<Markdown>{source}</Markdown>);
+
+    expect(container.querySelector("img[onerror]")).toBeNull();
+    const img = container.querySelector("img");
+    if (img) {
+      expect(img.getAttribute("onerror")).toBeNull();
+    }
+  });
 });

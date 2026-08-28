@@ -1,16 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-function uniquePrefix() {
-  const suffix = Date.now().toString(36).slice(-4).toUpperCase();
-  return `G${suffix}`.slice(0, 10);
-}
+import { cleanupE2EProjectByPrefix, uniquePrefix } from "./helpers";
 
 test.describe("Gate journey", () => {
+  let createdPrefix: string | undefined;
+
+  test.afterEach(async ({ request }) => {
+    await cleanupE2EProjectByPrefix(request, createdPrefix);
+    createdPrefix = undefined;
+  });
+
   test("full create → edit → move → trash → restore → purge flow", async ({
     page,
     request,
   }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("G");
+    createdPrefix = prefix;
     const projectName = `Gate ${prefix}`;
 
     // Create project
@@ -21,11 +26,6 @@ test.describe("Gate journey", () => {
     await page.getByLabel("Prefix").fill(prefix);
     await page.getByRole("button", { name: "Create project" }).click();
     await expect(page).toHaveURL(new RegExp(`/p/${prefix}$`));
-
-    const projects = await request.get("/api/v1/projects");
-    const project = (await projects.json()).items.find(
-      (p: { prefix: string }) => p.prefix === prefix,
-    );
 
     // Create nested directory
     await page.getByRole("button", { name: "Actions for all test cases" }).click();
@@ -105,8 +105,5 @@ test.describe("Gate journey", () => {
       `/api/v1/test-cases/number/${displayNumber}`,
     );
     expect(gone.status()).toBe(404);
-
-    // Cleanup: delete empty project
-    await request.delete(`/api/v1/projects/${project.id}`);
   });
 });

@@ -17,6 +17,7 @@ export function useAsyncErrorToast({
   useEffect(() => {
     if (!error) return;
     toast.error(message, {
+      id: `async-error:${message}`,
       action: onRetry
         ? {
             label: "Retry",

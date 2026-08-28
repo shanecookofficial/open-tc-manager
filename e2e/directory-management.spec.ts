@@ -1,9 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-function uniquePrefix() {
-  const suffix = Date.now().toString(36).slice(-4).toUpperCase();
-  return `D${suffix}`.slice(0, 10);
-}
+import { cleanupE2EProjectByPrefix, uniquePrefix } from "./helpers";
 
 async function createProject(page: import("@playwright/test").Page, prefix: string) {
   const name = `Dir E2E ${prefix}`;
@@ -21,8 +18,16 @@ async function openRootActions(page: import("@playwright/test").Page) {
 }
 
 test.describe("Directory management", () => {
+  let createdPrefix: string | undefined;
+
+  test.afterEach(async ({ request }) => {
+    await cleanupE2EProjectByPrefix(request, createdPrefix);
+    createdPrefix = undefined;
+  });
+
   test("creates nested folders", async ({ page }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("D");
+    createdPrefix = prefix;
     await createProject(page, prefix);
 
     await openRootActions(page);
@@ -41,7 +46,8 @@ test.describe("Directory management", () => {
   });
 
   test("rename collision shows inline error", async ({ page, request }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("D");
+    createdPrefix = prefix;
     await createProject(page, prefix);
 
     const projects = await request.get("/api/v1/projects");
@@ -69,7 +75,8 @@ test.describe("Directory management", () => {
     page,
     request,
   }) => {
-    const prefix = uniquePrefix();
+    const prefix = uniquePrefix("D");
+    createdPrefix = prefix;
     await createProject(page, prefix);
 
     const projects = await request.get("/api/v1/projects");
