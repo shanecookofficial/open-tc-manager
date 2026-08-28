@@ -46,7 +46,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   uniqueness incl. root, step-position uniqueness, cascades and SET NULL).
 
 ### M1-2 · API contract: `docs/API.md` + Zod schemas
-- **Owner:** Grok 4.6 · **Status:** review · **Needs:** M1-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M1-1
 - Full request/response/error specification for every PLAN §6 endpoint — including
   projects, trash, bulk-trash/restore/purge with the `{ ids } | { all, filter }`
   envelope, and pagination parameters/metadata — with JSON examples; matching Zod
@@ -56,7 +56,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   contract freeze); fixtures typecheck against the schemas.
 
 ### M1-3 · Seed & demo data
-- **Owner:** Composer · **Status:** todo · **Needs:** M1-1
+- **Owner:** Composer · **Status:** done · **Needs:** M1-1
 - Idempotent `npm run db:seed`: **two projects** with different prefixes (e.g. `WEB`,
   `API`); ~4 directories (one nested twice); ~15 realistic cases demonstrating markdown
   (tables, code blocks, lists) in descriptions, actions, and expected results; some

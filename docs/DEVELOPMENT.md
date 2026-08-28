@@ -86,9 +86,37 @@ After `npm ci`, apply migrations before running anything that talks to Postgres:
 
 ```bash
 npm run db:migrate
+npm run db:seed
 ```
 
-Seed data is added in task M1-3 (`npm run db:seed`).
+## Seeding
+
+`npm run db:seed` loads demo data for local development and API walkthroughs. It is
+**idempotent** — safe to run after every migration or whenever you want a known
+dataset without wiping the database.
+
+The script inserts (or reuses) two projects — **Web App** (`WEB`) and **Payments API**
+(`API`) — with the same names, prefixes, directory tree, and markdown-rich test cases
+as `src/lib/contracts/fixtures.ts`. Database ids differ from fixture ids; match rows by
+`prefix` and `displayNumber` (e.g. `WEB-11`).
+
+**Strategy:** projects are keyed by `prefix`; directories by
+`(project_id, parent_id, name)`; test cases by `(project_id, case_number)`. A second run
+skips existing rows and leaves row counts unchanged. `next_case_number` is synced to
+`max(case_number) + 1` per project after seeding.
+
+Requires `DATABASE_URL` (see `.env.example`) and an applied migration (`npm run db:migrate`).
+
+```bash
+npm run db:seed
+```
+
+Spot-check:
+
+```bash
+psql "$DATABASE_URL" -c "SELECT prefix, next_case_number FROM projects ORDER BY prefix"
+psql "$DATABASE_URL" -c "SELECT count(*) FROM test_cases"
+```
 
 ## npm scripts
 
@@ -103,6 +131,7 @@ Seed data is added in task M1-3 (`npm run db:seed`).
 | `npm run test:integration` | Constraint tests against a live Postgres (`DATABASE_URL`) |
 | `npm run db:generate` | Generate a SQL migration from `src/lib/db/schema.ts` |
 | `npm run db:migrate` | Apply pending migrations to `DATABASE_URL` |
+| `npm run db:seed` | Idempotent demo seed (WEB + API projects, markdown cases) |
 
 ## Troubleshooting
 
