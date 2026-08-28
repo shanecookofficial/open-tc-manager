@@ -15,7 +15,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M0 — Foundation
 
 ### M0-1 · Project scaffold
-- **Owner:** Composer · **Status:** todo · **Needs:** —
+- **Owner:** Composer · **Status:** done · **Needs:** —
 - Next.js (App Router) + TypeScript strict + Tailwind + shadcn/ui + ESLint + Prettier
   + Vitest wired up. `src/` layout: `app/`, `lib/`, `components/`. Placeholder home
   page. MIT `LICENSE` file.
