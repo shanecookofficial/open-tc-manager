@@ -169,11 +169,12 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-6 · Selection mode & bulk trash (repository view)
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M3-2
+- **Owner:** Composer · **Status:** done · **Needs:** M3-2
 - "Select" button toggles selection mode: per-row checkboxes, select-all-matching-filter
   control showing the total count, bulk "Move to trash" with count-stating confirmation.
 - **Accept:** Playwright: filter → select-all → bulk trash shows correct count and
   empties the filtered list; selection survives page navigation within the filter.
+- _"Select cases" button avoids project-switcher collision; select-all-matching shown when filters active._
 
 ### M3-7 · Trash view
 
