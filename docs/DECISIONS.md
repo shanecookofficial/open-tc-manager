@@ -122,3 +122,15 @@ cases trashed at root. `move_contents_to_parent` reparents immediate
 child folders and direct _active_ cases; already-trashed cases stay put
 and become root via SET NULL. Sibling-name collisions abort the
 transaction with `SIBLING_NAME_TAKEN`.
+
+---
+
+**2026-08-28 — Test case writes & search (M2-4).** `PUT /test-cases/:id`
+replaces steps by deleting and re-inserting in one transaction (new step
+ids, positions `1…n`). Search `q` is a case-insensitive substring of
+`title` or the computed `prefix-caseNumber` display id (`position(lower(q)
+in lower(…))`), so `WEB-7` / `web-7` / partial titles all work. List
+filters treat an unknown `directoryId` as `404`; create/update/move of a
+case into another project's folder is `409 CROSS_PROJECT`. GET-by-id and
+GET-by-display-number return trashed rows (`deletedAt` set); list/search
+do not.

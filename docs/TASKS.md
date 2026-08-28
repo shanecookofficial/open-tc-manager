@@ -101,7 +101,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M2-4 · Test case endpoints (active)
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M2-1
 - Paginated list (project + directory filters, `q` on title/number), create with steps
   (per-project numbering), get by id and by `:prefix-:n`, full update with atomic step
   replacement, move, soft delete.
