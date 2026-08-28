@@ -1,8 +1,15 @@
 node_modules
 .next
 .git
+.github
 .env
 .env*.local
 coverage
+test-results
+playwright-report
+e2e
 *.md
 !README.md
+tmp
+.cursor
+.vscode

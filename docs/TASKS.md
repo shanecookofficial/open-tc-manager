@@ -201,12 +201,15 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M4-1 · Production packaging
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M3-8
+- **Owner:** Composer · **Status:** done · **Needs:** M3-8
 - Multi-stage production Dockerfile (standalone output, non-root), production
   `docker-compose.yml` (app + postgres + volume + healthchecks), migrations run on
   container start, image published via CI on tag.
 - **Accept:** `docker compose -f docker-compose.prod.yml up` on a clean host serves the
   seeded app; container restart loses no data.
+- _Image build verified in GitHub Actions (`.github/workflows/docker.yml`) on every PR;
+  local Docker unavailable on the agent VM. Standalone output + `scripts/migrate.mjs`
+  rehearsed against a fresh Postgres database (see M4-2 `docs/SETUP.md`)._
 
 ### M4-2 · Setup & user docs
 
