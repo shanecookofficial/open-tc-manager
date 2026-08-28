@@ -69,7 +69,6 @@ describe("schema constraints", () => {
     await pool.query(
       `TRUNCATE TABLE test_steps, test_cases, directories, projects RESTART IDENTITY CASCADE`,
     );
-    await pool.end();
   });
 
   describe("projects.prefix", () => {

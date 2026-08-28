@@ -81,3 +81,19 @@ Choices worth not rediscovering:
   counts; project/permanent-case delete return 204.
 - Error codes are a closed enum (see API.md §1.3) inside
   `{ error: { code, message } }` — no `details` array in v1.
+
+---
+
+**2026-08-28 — API foundation (M2-1).** Route handlers live under
+`src/app/api/v1/` and share `apiHandler` (`src/lib/api/handler.ts`): Zod
+parses params/query/body, the handler returns a `Response`, and thrown
+`ApiError`s become `{ error: { code, message } }`. Zod failures use the
+first issue as `fieldPath: message` (e.g. `title: …`, `steps.0.action: …`)
+so the UI can map them; there is still no `details` array. Empty `q` is
+stripped from the query string before schema parse so it is ignored rather
+than failing `min(1)`. Integration tests invoke the exported GET/POST/…
+functions directly with constructed `Request` objects against live Postgres;
+they do not boot `next dev`. The shared `pg` pool is closed once by
+`src/zz-integration-teardown.integration.test.ts` (filename sorts last)
+so multiple `*.integration.test.ts` files can share it; schema tests no
+longer call `pool.end()` themselves.

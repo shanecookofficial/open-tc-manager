@@ -15,19 +15,22 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M0 — Foundation
 
 ### M0-1 · Project scaffold
+
 - **Owner:** Composer · **Status:** done · **Needs:** —
 - Next.js (App Router) + TypeScript strict + Tailwind + shadcn/ui + ESLint + Prettier
-  + Vitest wired up. `src/` layout: `app/`, `lib/`, `components/`. Placeholder home
-  page. MIT `LICENSE` file.
+  - Vitest wired up. `src/` layout: `app/`, `lib/`, `components/`. Placeholder home
+    page. MIT `LICENSE` file.
 - **Accept:** `npm run dev`, `lint`, `typecheck`, `test`, `build` all succeed on a clean clone.
 
 ### M0-2 · Dev database & compose skeleton
+
 - **Owner:** Composer · **Status:** done · **Needs:** M0-1
 - `docker-compose.yml` with `postgres:16` (volume, healthcheck) and the app in dev mode;
   `.env.example` with `DATABASE_URL` and comments; `docs/DEVELOPMENT.md` covering local setup.
 - **Accept:** `docker compose up` serves the placeholder app connected to Postgres.
 
 ### M0-3 · CI pipeline
+
 - **Owner:** Composer · **Status:** done · **Needs:** M0-1
 - GitHub Actions on PR: lint, typecheck, unit tests, build. Postgres service container
   prepared (used from M1 on). Required check for merge.
@@ -36,26 +39,29 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M1 — Contract (freeze before M2/M3 fan-out)
 
 ### M1-1 · Schema & migrations
+
 - **Owner:** Grok 4.6 · **Status:** done · **Needs:** M0-2
 - Drizzle schema for `projects`, `directories`, `test_cases`, `test_steps` exactly per
   PLAN §5 (per-project prefix + counter, `deleted_at`, constraints, deferred uniques,
   cascades, `ON DELETE SET NULL` for trashed-case directories). Generated SQL migration
-  + `npm run db:migrate`.
+  - `npm run db:migrate`.
 - **Accept:** migration applies cleanly to an empty DB; constraint behaviors verified by
   tests (prefix format/uniqueness, per-project case-number uniqueness, sibling-name
   uniqueness incl. root, step-position uniqueness, cascades and SET NULL).
 
 ### M1-2 · API contract: `docs/API.md` + Zod schemas
+
 - **Owner:** Grok 4.6 · **Status:** done · **Needs:** M1-1
 - Full request/response/error specification for every PLAN §6 endpoint — including
   projects, trash, bulk-trash/restore/purge with the `{ ids } | { all, filter }`
   envelope, and pagination parameters/metadata — with JSON examples; matching Zod
   schemas in `src/lib/contracts/`; typed fixture factory for UI development
   (`src/lib/contracts/fixtures.ts`).
-- **Accept:** Composer approves the PR after a genuine review (this approval *is* the
+- **Accept:** Composer approves the PR after a genuine review (this approval _is_ the
   contract freeze); fixtures typecheck against the schemas.
 
 ### M1-3 · Seed & demo data
+
 - **Owner:** Composer · **Status:** done · **Needs:** M1-1
 - Idempotent `npm run db:seed`: **two projects** with different prefixes (e.g. `WEB`,
   `API`); ~4 directories (one nested twice); ~15 realistic cases demonstrating markdown
@@ -67,13 +73,15 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M2 — API (Grok lane; parallel with M3)
 
 ### M2-1 · API foundation
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M1-2
+
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M1-2
 - Route-handler plumbing: DB client, Zod request validation wrapper, shared error
   envelope, shared pagination helper, `GET /api/v1/health`. Integration-test harness
   against Postgres in CI.
 - **Accept:** health endpoint + one demo validation failure covered by integration tests.
 
 ### M2-2 · Project endpoints
+
 - **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-1
 - List/create/update/delete projects, incl. prefix validation and uniqueness, atomic
   counter behavior, and delete-only-when-empty (no active or trashed cases).
@@ -82,6 +90,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   proving no duplicate case numbers per project.
 
 ### M2-3 · Directory endpoints
+
 - **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-1
 - `GET /projects/:id/tree`, `POST /directories`, `PATCH /directories/:id`,
   `DELETE /directories/:id?mode=...` incl. cycle rejection and both delete modes
@@ -91,6 +100,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   `trash_contents` leaves cases restorable (to root once their directory is gone).
 
 ### M2-4 · Test case endpoints (active)
+
 - **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-1
 - Paginated list (project + directory filters, `q` on title/number), create with steps
   (per-project numbering), get by id and by `:prefix-:n`, full update with atomic step
@@ -101,6 +111,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   soft-deleted cases vanishing from list/search/tree counts.
 
 ### M2-5 · Trash & bulk endpoints
+
 - **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-4
 - Paginated/filterable trash list; restore (single + bulk); permanent delete (single,
   409 unless trashed); purge (bulk permanent, `{ ids } | { all, filter }`); bulk-trash
@@ -112,12 +123,14 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M3 — UI (Composer lane; parallel with M2, against M1-2 fixtures until M2 lands)
 
 ### M3-1 · Markdown components
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M0-1
 - `<Markdown>` render component (`react-markdown` + `remark-gfm` + `rehype-sanitize`,
   strict schema) and `<MarkdownEditor>` (textarea + write/preview tabs).
 - **Accept:** unit tests: GFM table renders; `<script>` and `onerror` payloads render inert.
 
 ### M3-2 · App shell, project switcher & repository view
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M1-2
 - Layout with header + project switcher (create/edit dialogs incl. prefix-change
   warning; zero-project onboarding screen) + collapsible directory tree sidebar
@@ -127,12 +140,14 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   pagination against fixtures.
 
 ### M3-3 · Case detail view
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M3-1, M3-2
 - `/cases/<PREFIX>-<n>`: breadcrumb, title, rendered description, steps table with
   markdown cells, Edit/Move/Delete-to-trash actions with confirm dialog.
 - **Accept:** long/markdown-heavy fixture case renders legibly; trash confirm covered by test.
 
 ### M3-4 · Case editor
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M3-1, M3-2
 - Create + edit form: title, directory picker, description editor, dynamic step rows
   (required action, optional expected result, preview toggles, insert/remove,
@@ -141,6 +156,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   action shows inline error, not a request.
 
 ### M3-5 · Directory management UI
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M3-2
 - Create/rename/move/delete dialogs from tree context actions, incl. the delete-mode
   choice (`trash_contents` vs `move_contents_to_parent`) for non-empty directories and
@@ -149,6 +165,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   non-empty delete modes.
 
 ### M3-6 · Selection mode & bulk trash (repository view)
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M3-2
 - "Select" button toggles selection mode: per-row checkboxes, select-all-matching-filter
   control showing the total count, bulk "Move to trash" with count-stating confirmation.
@@ -156,6 +173,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   empties the filtered list; selection survives page navigation within the filter.
 
 ### M3-7 · Trash view
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M3-6
 - Paginated, filterable trash table (search + directory, trashed-at column); per-row
   Restore and Delete-permanently; selection mode with bulk Restore and bulk permanent
@@ -164,6 +182,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   confirm → select-all + purge; cancelling the typed confirm never deletes.
 
 ### M3-8 · Integration: UI on real API
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M2-2..M2-5, M3-3..M3-7
 - Swap fixtures for live endpoints; wire loading/error/toast states; fix contract
   mismatches (via `contract-change` if the contract itself is wrong).
@@ -174,6 +193,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M4 — Deployment & docs
 
 ### M4-1 · Production packaging
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M3-8
 - Multi-stage production Dockerfile (standalone output, non-root), production
   `docker-compose.yml` (app + postgres + volume + healthchecks), migrations run on
@@ -182,6 +202,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   seeded app; container restart loses no data.
 
 ### M4-2 · Setup & user docs
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M4-1
 - `docs/SETUP.md`: (a) Docker quickstart; (b) **manual Postgres guide** — install,
   `CREATE DATABASE`/`CREATE USER`/`GRANT` copy-paste block, `DATABASE_URL` format,
@@ -194,6 +215,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 - **Accept:** M4-3 passes.
 
 ### M4-3 · Adversarial docs walkthrough
+
 - **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M4-2
 - Execute `docs/SETUP.md` verbatim (both paths) on a clean environment; file an issue
   for every deviation, ambiguity, or missing step; Composer fixes; repeat until clean.
@@ -202,6 +224,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 ## M5 — Hardening & v0.1.0
 
 ### M5-1 · Bug bash & edge cases
+
 - **Owner:** both (Grok: API/data, Composer: UI) · **Status:** todo · **Needs:** M3-8
 - Attack: 200-char titles, 100+ steps, deep nesting (10+ levels), prefix edits on
   populated projects, concurrent edits, hostile markdown, select-all races while
@@ -210,6 +233,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 - **Accept:** zero known data-loss or XSS bugs; deferred list reviewed.
 
 ### M5-2 · A11y & performance pass
+
 - **Owner:** Composer · **Status:** todo · **Needs:** M5-1
 - Keyboard-only run of the gate journey (incl. selection mode); axe scan on the four
   main screens; list and trash stay responsive at 5k seeded cases (1k trashed) / 500
@@ -218,6 +242,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   time at the seeded scale.
 
 ### M5-3 · Release v0.1.0
+
 - **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M4-3, M5-2
 - CHANGELOG, CONTRIBUTING (points contributors at the playbook), issue templates, tag
   `v0.1.0`, verify published image, roadmap section in README naming the future themes
