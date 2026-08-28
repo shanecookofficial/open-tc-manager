@@ -4,11 +4,16 @@ import {
   projectSchema,
   projectTreeSchema,
   testCaseListResponseSchema,
+  testCaseSchema,
   type CreateProjectBody,
+  type CreateTestCaseBody,
+  type MoveTestCaseBody,
   type PatchProjectBody,
   type Project,
   type ProjectListResponse,
   type ProjectTree,
+  type PutTestCaseBody,
+  type TestCase,
   type TestCaseListResponse,
 } from "@/lib/contracts";
 import type { ErrorCode } from "@/lib/contracts";
@@ -106,6 +111,57 @@ export async function listTestCases(
 
   const response = await fetch(`${API_BASE}/test-cases?${search.toString()}`);
   return parseJson(response, testCaseListResponseSchema);
+}
+
+export async function getTestCaseByDisplayNumber(
+  displayNumber: string,
+): Promise<TestCase> {
+  const response = await fetch(
+    `${API_BASE}/test-cases/number/${encodeURIComponent(displayNumber)}`,
+  );
+  return parseJson(response, testCaseSchema);
+}
+
+export async function createTestCase(
+  body: CreateTestCaseBody,
+): Promise<TestCase> {
+  const response = await fetch(`${API_BASE}/test-cases`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, testCaseSchema);
+}
+
+export async function updateTestCase(
+  id: number,
+  body: PutTestCaseBody,
+): Promise<TestCase> {
+  const response = await fetch(`${API_BASE}/test-cases/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, testCaseSchema);
+}
+
+export async function moveTestCase(
+  id: number,
+  body: MoveTestCaseBody,
+): Promise<TestCase> {
+  const response = await fetch(`${API_BASE}/test-cases/${id}/move`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, testCaseSchema);
+}
+
+export async function deleteTestCase(id: number): Promise<TestCase> {
+  const response = await fetch(`${API_BASE}/test-cases/${id}`, {
+    method: "DELETE",
+  });
+  return parseJson(response, testCaseSchema);
 }
 
 /** Split server validation messages on the first ": " for form field mapping. */

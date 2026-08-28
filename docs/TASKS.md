@@ -142,10 +142,11 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-3 · Case detail view
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M3-1, M3-2
+- **Owner:** Composer · **Status:** done · **Needs:** M3-1, M3-2
 - `/cases/<PREFIX>-<n>`: breadcrumb, title, rendered description, steps table with
   markdown cells, Edit/Move/Delete-to-trash actions with confirm dialog.
-- **Accept:** long/markdown-heavy fixture case renders legibly; trash confirm covered by test.
+- **Accept:** long/markdown-heavy case (WEB-11) renders legibly against live API;
+  trash confirm covered by Playwright.
 
 ### M3-4 · Case editor
 
