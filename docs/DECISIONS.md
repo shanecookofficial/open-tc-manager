@@ -134,3 +134,16 @@ filters treat an unknown `directoryId` as `404`; create/update/move of a
 case into another project's folder is `409 CROSS_PROJECT`. GET-by-id and
 GET-by-display-number return trashed rows (`deletedAt` set); list/search
 do not.
+
+---
+
+**2026-08-28 — Bulk trash/restore/purge (M2-5).** Bulk `{ ids }` loads
+every id first and rejects the whole transaction on the first missing,
+wrong-project, or wrong-state row (`404` / `409`) so no partial updates
+occur. `{ all: true, filter }` never enumerates ids from the other
+scope: bulk-trash queries `deleted_at IS NULL`; bulk-restore and purge
+query `deleted_at IS NOT NULL`. Purge's DELETE also includes
+`deleted_at IS NOT NULL` as a second guard so an active case cannot be
+removed even if targeting were wrong. Restore (single and bulk) keeps
+`directoryId` when that folder still belongs to the project, otherwise
+null (root).

@@ -112,7 +112,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M2-5 · Trash & bulk endpoints
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-4
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M2-4
 - Paginated/filterable trash list; restore (single + bulk); permanent delete (single,
   409 unless trashed); purge (bulk permanent, `{ ids } | { all, filter }`); bulk-trash
   on active cases. All bulk ops transactional, returning affected counts.
