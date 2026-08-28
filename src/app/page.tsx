@@ -4,7 +4,7 @@ export default function HomePage() {
       <h1 className="text-3xl font-semibold tracking-tight">
         OpenTCM — Open Test Case Manager
       </h1>
-      <p className="text-muted-foreground max-w-lg text-center text-lg">
+      <p className="max-w-lg text-center text-lg text-muted-foreground">
         A free, open-source, self-hostable test case manager. Foundation
         scaffold is in place — the full UI arrives in later milestones.
       </p>
