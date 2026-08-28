@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,9 +20,25 @@ type CaseListProps = {
   cases: TestCaseSummary[];
   isLoading: boolean;
   emptyState: React.ReactNode;
+  selectionMode?: boolean;
+  selectedIds?: Set<number>;
+  onToggleCase?: (id: number, checked: boolean) => void;
+  onTogglePage?: (checked: boolean) => void;
+  pageAllSelected?: boolean;
+  pageSomeSelected?: boolean;
 };
 
-export function CaseList({ cases, isLoading, emptyState }: CaseListProps) {
+export function CaseList({
+  cases,
+  isLoading,
+  emptyState,
+  selectionMode = false,
+  selectedIds,
+  onToggleCase,
+  onTogglePage,
+  pageAllSelected = false,
+  pageSomeSelected = false,
+}: CaseListProps) {
   if (isLoading) {
     return (
       <div className="space-y-2 p-4">
@@ -40,6 +57,20 @@ export function CaseList({ cases, isLoading, emptyState }: CaseListProps) {
     <Table>
       <TableHeader>
         <TableRow>
+          {selectionMode ? (
+            <TableHead className="w-10">
+              <Checkbox
+                checked={pageAllSelected}
+                aria-checked={
+                  pageSomeSelected && !pageAllSelected ? "mixed" : pageAllSelected
+                }
+                onCheckedChange={(checked) =>
+                  onTogglePage?.(checked === true)
+                }
+                aria-label="Select all on this page"
+              />
+            </TableHead>
+          ) : null}
           <TableHead className="w-28">Number</TableHead>
           <TableHead>Title</TableHead>
           <TableHead className="w-20 text-right">Steps</TableHead>
@@ -48,7 +79,18 @@ export function CaseList({ cases, isLoading, emptyState }: CaseListProps) {
       </TableHeader>
       <TableBody>
         {cases.map((testCase) => (
-          <TableRow key={testCase.id}>
+          <TableRow key={testCase.id} data-selected={selectedIds?.has(testCase.id)}>
+            {selectionMode ? (
+              <TableCell>
+                <Checkbox
+                  checked={selectedIds?.has(testCase.id) ?? false}
+                  onCheckedChange={(checked) =>
+                    onToggleCase?.(testCase.id, checked === true)
+                  }
+                  aria-label={`Select ${testCase.displayNumber}`}
+                />
+              </TableCell>
+            ) : null}
             <TableCell>
               <Link
                 href={`/cases/${testCase.displayNumber}`}

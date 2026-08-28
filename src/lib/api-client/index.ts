@@ -1,13 +1,23 @@
 import {
+  bulkCountResponseSchema,
+  directoryDeleteResponseSchema,
+  directorySchema,
   errorBodySchema,
   projectListResponseSchema,
   projectSchema,
   projectTreeSchema,
   testCaseListResponseSchema,
   testCaseSchema,
+  type BulkFilter,
+  type BulkSelectionWithProject,
+  type CreateDirectoryBody,
   type CreateProjectBody,
   type CreateTestCaseBody,
+  type Directory,
+  type DirectoryDeleteMode,
+  type DirectoryDeleteResponse,
   type MoveTestCaseBody,
+  type PatchDirectoryBody,
   type PatchProjectBody,
   type Project,
   type ProjectListResponse,
@@ -162,6 +172,131 @@ export async function deleteTestCase(id: number): Promise<TestCase> {
     method: "DELETE",
   });
   return parseJson(response, testCaseSchema);
+}
+
+export async function createDirectory(
+  body: CreateDirectoryBody,
+): Promise<Directory> {
+  const response = await fetch(`${API_BASE}/directories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, directorySchema);
+}
+
+export async function updateDirectory(
+  id: number,
+  body: PatchDirectoryBody,
+): Promise<Directory> {
+  const response = await fetch(`${API_BASE}/directories/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, directorySchema);
+}
+
+export async function deleteDirectory(
+  id: number,
+  mode?: DirectoryDeleteMode,
+): Promise<DirectoryDeleteResponse> {
+  const search = mode ? `?mode=${mode}` : "";
+  const response = await fetch(`${API_BASE}/directories/${id}${search}`, {
+    method: "DELETE",
+  });
+  return parseJson(response, directoryDeleteResponseSchema);
+}
+
+export type TrashListParams = {
+  projectId: number;
+  directoryId?: number | null;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function listTrash(
+  params: TrashListParams,
+): Promise<TestCaseListResponse> {
+  const search = new URLSearchParams();
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  if (params.q) search.set("q", params.q);
+  if (params.directoryId === null) {
+    search.set("directoryId", "");
+  } else if (params.directoryId !== undefined) {
+    search.set("directoryId", String(params.directoryId));
+  }
+
+  const query = search.toString();
+  const response = await fetch(
+    `${API_BASE}/projects/${params.projectId}/trash${query ? `?${query}` : ""}`,
+  );
+  return parseJson(response, testCaseListResponseSchema);
+}
+
+export async function restoreTestCase(id: number): Promise<TestCase> {
+  const response = await fetch(`${API_BASE}/test-cases/${id}/restore`, {
+    method: "POST",
+  });
+  return parseJson(response, testCaseSchema);
+}
+
+export async function permanentlyDeleteTestCase(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/test-cases/${id}/permanent`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const body: unknown = await response.json();
+    const parsed = errorBodySchema.safeParse(body);
+    if (parsed.success) {
+      throw new ApiClientError(
+        parsed.data.error.code,
+        parsed.data.error.message,
+        response.status,
+      );
+    }
+    throw new ApiClientError(
+      "INTERNAL_ERROR",
+      "Unexpected server response",
+      response.status,
+    );
+  }
+}
+
+export async function bulkTrash(
+  body: BulkSelectionWithProject,
+): Promise<{ count: number }> {
+  const response = await fetch(`${API_BASE}/test-cases/bulk-trash`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, bulkCountResponseSchema);
+}
+
+export async function bulkRestore(
+  body: BulkSelectionWithProject,
+): Promise<{ count: number }> {
+  const response = await fetch(`${API_BASE}/test-cases/bulk-restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, bulkCountResponseSchema);
+}
+
+export async function purgeTrash(
+  projectId: number,
+  selection: { ids: number[] } | { all: true; filter?: BulkFilter },
+): Promise<{ count: number }> {
+  const response = await fetch(`${API_BASE}/projects/${projectId}/trash/purge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(selection),
+  });
+  return parseJson(response, bulkCountResponseSchema);
 }
 
 /** Split server validation messages on the first ": " for form field mapping. */

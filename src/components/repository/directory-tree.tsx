@@ -1,27 +1,49 @@
 "use client";
 
-import { ChevronDownIcon, ChevronRightIcon, FolderIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FolderIcon,
+  MoreHorizontalIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { TreeNode } from "@/lib/contracts";
+import { filterExcludedNodes } from "@/lib/tree-utils";
 
 export type DirectorySelection =
   | { type: "all" }
   | { type: "root" }
   | { type: "directory"; id: number };
 
+export type DirectoryManageAction =
+  | { type: "create"; parentId: number | null }
+  | { type: "rename"; directory: TreeNode }
+  | { type: "move"; directory: TreeNode }
+  | { type: "delete"; directory: TreeNode };
+
 type DirectoryTreeProps = {
   directories: TreeNode[];
   allCount: number;
   selection: DirectorySelection;
   onSelect: (selection: DirectorySelection) => void;
-  /** When true, the root node is "Project root" for case placement instead of "All test cases". */
   placementMode?: boolean;
+  manageMode?: boolean;
+  onManageAction?: (action: DirectoryManageAction) => void;
+  excludeIds?: Set<number>;
 };
 
-function TreeNodeButton({
+function TreeNodeRow({
   node,
   depth,
   selection,
@@ -29,6 +51,8 @@ function TreeNodeButton({
   collapsed,
   onToggle,
   onKeyNavigate,
+  manageMode,
+  onManageAction,
 }: {
   node: TreeNode;
   depth: number;
@@ -37,6 +61,8 @@ function TreeNodeButton({
   collapsed: Set<number>;
   onToggle: (id: number) => void;
   onKeyNavigate: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+  manageMode?: boolean;
+  onManageAction?: (action: DirectoryManageAction) => void;
 }) {
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(node.id);
@@ -45,45 +71,93 @@ function TreeNodeButton({
 
   return (
     <div>
-      <button
-        type="button"
-        data-tree-item
+      <div
         className={cn(
-          "flex w-full items-center gap-1 rounded-md py-1.5 pr-2 text-left text-sm hover:bg-accent",
-          selected && "bg-accent font-medium",
+          "group flex items-center gap-0.5 rounded-md hover:bg-accent",
+          selected && "bg-accent",
         )}
-        style={{ paddingLeft: `${depth * 12 + 8}px` }}
-        aria-current={selected ? "page" : undefined}
-        onClick={() => onSelect({ type: "directory", id: node.id })}
-        onKeyDown={onKeyNavigate}
+        style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
-        {hasChildren ? (
-          <span
-            role="presentation"
-            className="inline-flex size-5 shrink-0 items-center justify-center"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle(node.id);
-            }}
-          >
-            {isCollapsed ? (
-              <ChevronRightIcon className="size-3.5" />
-            ) : (
-              <ChevronDownIcon className="size-3.5" />
-            )}
+        <button
+          type="button"
+          data-tree-item
+          className="flex min-w-0 flex-1 items-center gap-1 py-1.5 pr-1 text-left text-sm"
+          aria-current={selected ? "page" : undefined}
+          onClick={() => onSelect({ type: "directory", id: node.id })}
+          onKeyDown={onKeyNavigate}
+        >
+          {hasChildren ? (
+            <span
+              role="presentation"
+              className="inline-flex size-5 shrink-0 items-center justify-center"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle(node.id);
+              }}
+            >
+              {isCollapsed ? (
+                <ChevronRightIcon className="size-3.5" />
+              ) : (
+                <ChevronDownIcon className="size-3.5" />
+              )}
+            </span>
+          ) : (
+            <span className="inline-block size-5 shrink-0" />
+          )}
+          <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className={cn("flex-1 truncate", selected && "font-medium")}>
+            {node.name}
           </span>
-        ) : (
-          <span className="inline-block size-5 shrink-0" />
-        )}
-        <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate">{node.name}</span>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {node.activeCaseCount}
-        </span>
-      </button>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {node.activeCaseCount}
+          </span>
+        </button>
+        {manageMode && onManageAction ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="mr-1 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                aria-label={`Actions for ${node.name}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() =>
+                  onManageAction({ type: "create", parentId: node.id })
+                }
+              >
+                New subfolder…
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => onManageAction({ type: "rename", directory: node })}
+              >
+                Rename…
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => onManageAction({ type: "move", directory: node })}
+              >
+                Move…
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => onManageAction({ type: "delete", directory: node })}
+              >
+                Delete…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
       {hasChildren && !isCollapsed
         ? node.children.map((child) => (
-            <TreeNodeButton
+            <TreeNodeRow
               key={child.id}
               node={child}
               depth={depth + 1}
@@ -92,6 +166,8 @@ function TreeNodeButton({
               collapsed={collapsed}
               onToggle={onToggle}
               onKeyNavigate={onKeyNavigate}
+              manageMode={manageMode}
+              onManageAction={onManageAction}
             />
           ))
         : null}
@@ -105,8 +181,12 @@ export function DirectoryTree({
   selection,
   onSelect,
   placementMode = false,
+  manageMode = false,
+  onManageAction,
+  excludeIds,
 }: DirectoryTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  const visibleDirectories = filterExcludedNodes(directories, excludeIds);
 
   const toggleCollapsed = useCallback((id: number) => {
     setCollapsed((prev) => {
@@ -137,32 +217,60 @@ export function DirectoryTree({
 
   return (
     <nav aria-label="Directory tree" className="space-y-1">
-      <button
-        type="button"
-        data-tree-item
+      <div
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent",
-          rootSelected && "bg-accent font-medium",
+          "group flex items-center gap-0.5 rounded-md hover:bg-accent",
+          rootSelected && "bg-accent",
         )}
-        aria-current={rootSelected ? "page" : undefined}
-        onClick={() =>
-          onSelect(placementMode ? { type: "root" } : { type: "all" })
-        }
-        onKeyDown={handleKeyNavigate}
       >
-        <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate">
-          {placementMode ? "Project root" : "All test cases"}
-        </span>
-        {!placementMode ? (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {allCount}
+        <button
+          type="button"
+          data-tree-item
+          className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-sm"
+          aria-current={rootSelected ? "page" : undefined}
+          onClick={() =>
+            onSelect(placementMode ? { type: "root" } : { type: "all" })
+          }
+          onKeyDown={handleKeyNavigate}
+        >
+          <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className={cn("flex-1 truncate", rootSelected && "font-medium")}>
+            {placementMode ? "Project root" : "All test cases"}
           </span>
+          {!placementMode ? (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {allCount}
+            </span>
+          ) : null}
+        </button>
+        {manageMode && onManageAction ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="mr-1 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                aria-label="Actions for all test cases"
+              >
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() =>
+                  onManageAction({ type: "create", parentId: null })
+                }
+              >
+                New folder…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
-      </button>
+      </div>
 
-      {directories.map((node) => (
-        <TreeNodeButton
+      {visibleDirectories.map((node) => (
+        <TreeNodeRow
           key={node.id}
           node={node}
           depth={0}
@@ -171,6 +279,8 @@ export function DirectoryTree({
           collapsed={collapsed}
           onToggle={toggleCollapsed}
           onKeyNavigate={handleKeyNavigate}
+          manageMode={manageMode}
+          onManageAction={onManageAction}
         />
       ))}
     </nav>
@@ -184,6 +294,8 @@ type DirectorySidebarProps = {
   trashCount: number;
   selection: DirectorySelection;
   onSelect: (selection: DirectorySelection) => void;
+  manageMode?: boolean;
+  onManageAction?: (action: DirectoryManageAction) => void;
 };
 
 export function DirectorySidebar({
@@ -193,6 +305,8 @@ export function DirectorySidebar({
   trashCount,
   selection,
   onSelect,
+  manageMode,
+  onManageAction,
 }: DirectorySidebarProps) {
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r bg-muted/20">
@@ -202,6 +316,8 @@ export function DirectorySidebar({
           allCount={allCount}
           selection={selection}
           onSelect={onSelect}
+          manageMode={manageMode}
+          onManageAction={onManageAction}
         />
       </div>
       <div className="border-t p-3">
@@ -210,7 +326,9 @@ export function DirectorySidebar({
           className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <span>Trash</span>
-          <span className="tabular-nums">{trashCount}</span>
+          <span className="tabular-nums" data-testid="trash-count">
+            {trashCount}
+          </span>
         </Link>
       </div>
     </aside>

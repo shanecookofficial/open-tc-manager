@@ -31,7 +31,7 @@ test.describe("Repository view", () => {
     const treeNav = page.getByRole("navigation", { name: "Directory tree" });
     await expect(treeNav).toBeVisible({ timeout: 15_000 });
 
-    const checkoutFolder = treeNav.getByRole("button", { name: /Checkout/i });
+    const checkoutFolder = treeNav.locator("[data-tree-item]", { hasText: "Checkout" });
     await expect(checkoutFolder).toBeVisible();
     await checkoutFolder.click();
 

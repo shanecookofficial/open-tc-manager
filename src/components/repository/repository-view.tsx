@@ -3,24 +3,40 @@
 import { PlusIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { ManagedDirectorySidebar } from "@/components/directories/managed-directory-sidebar";
 import {
   CaseList,
   PaginationControls,
 } from "@/components/repository/case-list";
 import {
-  DirectorySidebar,
   directoryParamToSelection,
   directorySelectionToApiFilter,
   directorySelectionToParam,
   type DirectorySelection,
 } from "@/components/repository/directory-tree";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAsyncData, useDebouncedValue } from "@/hooks/use-async-data";
-import { getProjectTree, listTestCases } from "@/lib/api-client";
-import type { Project } from "@/lib/contracts";
+import { useAsyncErrorToast } from "@/components/ui/async-error-toast";
+import { ApiClientError, bulkTrash, getProjectTree, listTestCases } from "@/lib/api-client";
+import type { BulkFilter, Project } from "@/lib/contracts";
+
+type SelectionScope =
+  | { type: "ids"; ids: Set<number> }
+  | { type: "all"; count: number };
 
 type RepositoryViewProps = {
   project: Project;
@@ -38,15 +54,32 @@ export function RepositoryView({ project }: RepositoryViewProps) {
   const selection = directoryParamToSelection(directoryParam);
   const debouncedQ = useDebouncedValue(qParam, 300);
 
-  const { data: tree, isLoading: treeLoading } = useAsyncData(
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedScope, setSelectedScope] = useState<SelectionScope | null>(null);
+  const [confirmTrashOpen, setConfirmTrashOpen] = useState(false);
+  const [isTrashing, setIsTrashing] = useState(false);
+
+  const { data: tree, isLoading: treeLoading, error: treeError, refetch: refetchTree } = useAsyncData(
     () => getProjectTree(project.id),
-    [project.id],
+    [project.id, refreshKey],
   );
   const treeReady = tree !== undefined;
 
   const directoryId = directorySelectionToApiFilter(selection);
 
-  const { data: caseList, isLoading: listLoading } = useAsyncData(
+  const currentFilter: BulkFilter = useMemo(() => {
+    const filter: BulkFilter = {};
+    if (directoryId !== undefined) {
+      filter.directoryId = directoryId;
+    }
+    if (debouncedQ.trim()) {
+      filter.q = debouncedQ.trim();
+    }
+    return filter;
+  }, [directoryId, debouncedQ]);
+
+  const { data: caseList, isLoading: listLoading, error: listError, refetch: refetchList } = useAsyncData(
     () =>
       listTestCases({
         projectId: project.id,
@@ -55,8 +88,25 @@ export function RepositoryView({ project }: RepositoryViewProps) {
         page,
         pageSize,
       }),
-    [project.id, directoryId, debouncedQ, page, pageSize],
+    [project.id, directoryId, debouncedQ, page, pageSize, refreshKey],
   );
+
+  useAsyncErrorToast({
+    error: treeError,
+    message: "Failed to load directory tree",
+    onRetry: refetchTree,
+  });
+  useAsyncErrorToast({
+    error: listError,
+    message: "Failed to load test cases",
+    onRetry: refetchList,
+  });
+
+  const handleMutated = () => {
+    setRefreshKey((key) => key + 1);
+    refetchTree();
+    refetchList();
+  };
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -78,6 +128,103 @@ export function RepositoryView({ project }: RepositoryViewProps) {
       dir: directorySelectionToParam(next) ?? null,
       page: "1",
     });
+  };
+
+  const selectedIds =
+    selectedScope?.type === "ids" ? selectedScope.ids : new Set<number>();
+
+  const selectedCount =
+    selectedScope?.type === "all"
+      ? selectedScope.count
+      : selectedScope?.type === "ids"
+        ? selectedScope.ids.size
+        : 0;
+
+  const hasActiveFilter =
+    debouncedQ.trim().length > 0 ||
+    selection.type === "directory" ||
+    selection.type === "root";
+  const visibleIds = caseList?.items.map((item) => item.id) ?? [];
+  const showSelectAllMatching =
+    caseList !== undefined &&
+    caseList.totalItems > 0 &&
+    (hasActiveFilter || caseList.totalItems > visibleIds.length);
+  const pageAllSelected =
+    visibleIds.length > 0 &&
+    selectedScope?.type === "ids" &&
+    visibleIds.every((id) => selectedScope.ids.has(id));
+  const pageSomeSelected =
+    selectedScope?.type === "ids" &&
+    visibleIds.some((id) => selectedScope.ids.has(id));
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedScope(null);
+  };
+
+  const toggleCase = (id: number, checked: boolean) => {
+    setSelectedScope((prev) => {
+      if (prev?.type === "all") {
+        const ids = new Set(
+          (caseList?.items ?? [])
+            .map((item) => item.id)
+            .filter((itemId) => itemId !== id),
+        );
+        return ids.size > 0 ? { type: "ids", ids } : null;
+      }
+      const ids = new Set(prev?.type === "ids" ? prev.ids : []);
+      if (checked) ids.add(id);
+      else ids.delete(id);
+      return ids.size > 0 ? { type: "ids", ids } : null;
+    });
+  };
+
+  const togglePage = (checked: boolean) => {
+    setSelectedScope((prev) => {
+      const ids = new Set(prev?.type === "ids" ? prev.ids : []);
+      for (const id of visibleIds) {
+        if (checked) ids.add(id);
+        else ids.delete(id);
+      }
+      return ids.size > 0 ? { type: "ids", ids } : null;
+    });
+  };
+
+  const selectAllMatching = () => {
+    if (!caseList) return;
+    setSelectedScope({ type: "all", count: caseList.totalItems });
+  };
+
+  const handleBulkTrash = async () => {
+    if (!selectedScope || selectedCount === 0) return;
+    setIsTrashing(true);
+    try {
+      let result: { count: number };
+      if (selectedScope.type === "all") {
+        result = await bulkTrash({
+          projectId: project.id,
+          all: true,
+          filter: currentFilter,
+        });
+      } else {
+        result = await bulkTrash({
+          projectId: project.id,
+          ids: Array.from(selectedScope.ids),
+        });
+      }
+      toast.success(`Moved ${result.count} test case(s) to trash`);
+      exitSelectionMode();
+      handleMutated();
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error(error.message);
+      } else {
+        toast.error("Bulk trash failed");
+      }
+    } finally {
+      setIsTrashing(false);
+      setConfirmTrashOpen(false);
+    }
   };
 
   const emptyState = useMemo(() => {
@@ -133,13 +280,12 @@ export function RepositoryView({ project }: RepositoryViewProps) {
           </div>
         </aside>
       ) : tree ? (
-        <DirectorySidebar
+        <ManagedDirectorySidebar
           prefix={project.prefix}
-          directories={tree.directories}
-          allCount={tree.activeCaseCount}
-          trashCount={tree.trashCount}
+          tree={tree}
           selection={selection}
           onSelect={handleDirectorySelect}
+          onMutated={handleMutated}
         />
       ) : (
         <aside className="w-64 shrink-0 border-r bg-muted/20 p-3" />
@@ -159,19 +305,61 @@ export function RepositoryView({ project }: RepositoryViewProps) {
               aria-label="Search test cases"
             />
           </div>
-          <Button asChild>
-            <Link href={newCaseHref}>
-              <PlusIcon />
-              New test case
-            </Link>
+          <Button
+            variant={selectionMode ? "secondary" : "outline"}
+            onClick={() => {
+              if (selectionMode) exitSelectionMode();
+              else setSelectionMode(true);
+            }}
+          >
+            {selectionMode ? "Cancel" : "Select cases"}
           </Button>
+          {!selectionMode ? (
+            <Button asChild>
+              <Link href={newCaseHref}>
+                <PlusIcon />
+                New test case
+              </Link>
+            </Button>
+          ) : null}
         </div>
+
+        {selectionMode && caseList && caseList.totalItems > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-medium">{selectedCount} selected</span>
+              {showSelectAllMatching ? (
+                <Button
+                  variant="link"
+                  className="h-auto p-0"
+                  onClick={selectAllMatching}
+                >
+                  Select all {caseList.totalItems} matching
+                </Button>
+              ) : null}
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={selectedCount === 0}
+              onClick={() => setConfirmTrashOpen(true)}
+            >
+              Move to trash
+            </Button>
+          </div>
+        ) : null}
 
         <div className="flex-1 overflow-auto">
           <CaseList
             cases={caseList?.items ?? []}
             isLoading={listLoading}
             emptyState={emptyState}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleCase={toggleCase}
+            onTogglePage={togglePage}
+            pageAllSelected={pageAllSelected}
+            pageSomeSelected={pageSomeSelected}
           />
         </div>
 
@@ -186,6 +374,28 @@ export function RepositoryView({ project }: RepositoryViewProps) {
           />
         ) : null}
       </div>
+
+      <AlertDialog open={confirmTrashOpen} onOpenChange={setConfirmTrashOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move to trash?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedCount} test case{selectedCount === 1 ? "" : "s"} will be
+              moved to the project trash.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkTrash}
+              disabled={isTrashing}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {isTrashing ? "Moving…" : `Move ${selectedCount} to trash`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

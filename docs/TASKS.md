@@ -159,12 +159,13 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-5 · Directory management UI
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M3-2
+- **Owner:** Composer · **Status:** done · **Needs:** M3-2
 - Create/rename/move/delete dialogs from tree context actions, incl. the delete-mode
   choice (`trash_contents` vs `move_contents_to_parent`) for non-empty directories and
   the case "Move to…" picker.
 - **Accept:** Playwright covers create-nested, rename-collision error, and both
   non-empty delete modes.
+- _Built against live API; tree context menus with `data-tree-item` selectors for e2e stability._
 
 ### M3-6 · Selection mode & bulk trash (repository view)
 
