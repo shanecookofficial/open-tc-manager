@@ -1,7 +1,8 @@
-# TestTrove (working title)
+# OpenTCM — Open Test Case Manager
 
-A free, open-source, self-hostable test case manager: a simple, intuitive website for
-authoring and organizing test cases, backed by PostgreSQL. MIT licensed.
+OpenTCM (**Open Test Case Manager**) is a free, open-source, self-hostable test case
+manager: a simple, intuitive website for authoring and organizing test cases, backed
+by PostgreSQL. MIT licensed.
 
 **Status: planning.** Implementation has not started yet. Start here:
 

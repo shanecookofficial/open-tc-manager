@@ -31,3 +31,13 @@ plan were answered as follows, and the plan was updated to match:
 7. **Import/export:** deferred (roadmap).
 8. **Search:** titles + case numbers in v1; **search by step text is a confirmed
    roadmap item** (planned via Postgres full-text search).
+
+---
+
+**2026-08-28 — Product owner decision (round 2): name is OpenTCM, final.** The owner
+reconsidered and chose to keep **OpenTCM (Open Test Case Manager)** despite the acronym
+appearing in a research paper ([arXiv:2504.20118](https://arxiv.org/abs/2504.20118)):
+this is a non-commercial open-source project in a different domain, nothing is being
+sold, and the README and user-facing surfaces spell out "Open Test Case Manager" to
+avoid confusion. This supersedes the "TestTrove" working title from round 1. The name
+question is closed; no open product questions remain.

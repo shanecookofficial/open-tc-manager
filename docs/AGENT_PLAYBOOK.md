@@ -1,7 +1,8 @@
 # Agent Playbook — How Grok 4.6 and Composer Work Together
 
 This document is the collaboration protocol for the AI implementation agents building
-TestTrove. Read `docs/PLAN.md` first; read `docs/TASKS.md` to find your work.
+OpenTCM (Open Test Case Manager). Read `docs/PLAN.md` first; read `docs/TASKS.md` to
+find your work.
 Binding product decisions live in `docs/DECISIONS.md`.
 
 ---

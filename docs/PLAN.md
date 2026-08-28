@@ -1,9 +1,9 @@
-# TestTrove — Product & Delivery Plan
+# OpenTCM — Product & Delivery Plan
 
-**Working title:** TestTrove — chosen after "OpenTCM" was found to collide with an
-existing research tool ([arXiv:2504.20118](https://arxiv.org/abs/2504.20118)); no
-existing product named TestTrove was found. Still swappable before v0.1 if the product
-owner prefers another name.
+**Name:** OpenTCM — **Open Test Case Manager**. The name is final per the product
+owner. A research tool shares the acronym ([arXiv:2504.20118](https://arxiv.org/abs/2504.20118));
+this is a non-commercial open-source project in a different domain, and the README and
+all user-facing surfaces spell out "Open Test Case Manager" to avoid confusion.
 **Status:** v1 planning, decisions locked (see `docs/DECISIONS.md`). This document is
 the source of truth for scope and architecture.
 **Audience:** The AI implementation agents (Grok 4.6 and Composer), human maintainers,
@@ -330,14 +330,11 @@ contract early: Composer builds UI against a mock/fixture layer derived from
 ## 10. Decision log & remaining open items
 
 All previously open product questions were answered by the product owner on 2026-08-28;
-the binding record is `docs/DECISIONS.md`. Summary: MIT license; per-project
-configurable prefixes; soft delete + trash with deliberate bulk permanent deletion;
-pagination/filtering for large case volumes; no login (closed networks, `.env`
-configuration); stack approved; import/export deferred; search on titles/numbers for
-now with step-text search on the roadmap; roadmap priorities recorded in §2.
+the binding record is `docs/DECISIONS.md`. Summary: name finalized as **OpenTCM (Open
+Test Case Manager)**; MIT license; per-project configurable prefixes; soft delete +
+trash with deliberate bulk permanent deletion; pagination/filtering for large case
+volumes; no login (closed networks, `.env` configuration); stack approved;
+import/export deferred; search on titles/numbers for now with step-text search on the
+roadmap; roadmap priorities recorded in §2.
 
-Remaining open item:
-
-1. **Name confirmation** — "TestTrove" is the working title (verified free of obvious
-   collisions). Product owner may override any time before v0.1; renaming before M4
-   (docs milestone) is cheap.
+There are no remaining open product questions. Implementation may begin at task M0-1.

@@ -1,6 +1,7 @@
 # Task Ledger
 
-Work breakdown for TestTrove v1. Rules for claiming, branching, and review are in
+Work breakdown for OpenTCM (Open Test Case Manager) v1. Rules for claiming, branching,
+and review are in
 `docs/AGENT_PLAYBOOK.md`. Architecture and scope are in `docs/PLAN.md`; binding product
 decisions are in `docs/DECISIONS.md`.
 
@@ -186,7 +187,9 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   `CREATE DATABASE`/`CREATE USER`/`GRANT` copy-paste block, `DATABASE_URL` format,
   `.env` file walkthrough, migrate, run; (c) upgrade & backup notes; (d) a prominent
   note that v1 has no authentication and belongs on a closed/trusted network.
-  Rewritten `README.md` (what/why/screenshot/quickstart/roadmap/license). Short
+  Rewritten `README.md` (what/why/screenshot/quickstart/roadmap/license), whose title
+  and opening line spell out **"OpenTCM — Open Test Case Manager"** per the product
+  owner. Short
   `docs/USER_GUIDE.md` with screenshots incl. trash & bulk delete flows.
 - **Accept:** M4-3 passes.
 
