@@ -22,7 +22,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 - **Accept:** `npm run dev`, `lint`, `typecheck`, `test`, `build` all succeed on a clean clone.
 
 ### M0-2 · Dev database & compose skeleton
-- **Owner:** Composer · **Status:** todo · **Needs:** M0-1
+- **Owner:** Composer · **Status:** done · **Needs:** M0-1
 - `docker-compose.yml` with `postgres:16` (volume, healthcheck) and the app in dev mode;
   `.env.example` with `DATABASE_URL` and comments; `docs/DEVELOPMENT.md` covering local setup.
 - **Accept:** `docker compose up` serves the placeholder app connected to Postgres.

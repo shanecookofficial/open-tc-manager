@@ -1,0 +1,107 @@
+# Local development
+
+This guide covers two ways to run OpenTCM locally during development. Both paths
+use the same environment variables; only how Postgres is started differs.
+
+## Prerequisites
+
+- **Node.js 22+** and **npm 10+** (see `package.json` engines if added later).
+- **Git** clone of this repository.
+
+For the Docker path you also need **Docker** and **Docker Compose v2**.
+
+For the bring-your-own Postgres path you need a **PostgreSQL 16+** server.
+
+## Quick start with Docker Compose
+
+The `docker-compose.yml` file starts PostgreSQL 16 and the Next.js dev server:
+
+```bash
+cp .env.example .env   # optional on first run; compose sets DATABASE_URL for the app container
+docker compose up
+```
+
+- **App:** http://localhost:3000 — placeholder home page (full UI arrives in M3).
+- **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
+
+The `app` service waits for Postgres to pass its healthcheck before starting.
+Data persists in the `postgres_data` Docker volume.
+
+To run commands inside the app container:
+
+```bash
+docker compose exec app npm run lint
+```
+
+Stop and remove containers (data volume is kept):
+
+```bash
+docker compose down
+```
+
+## Bring your own PostgreSQL
+
+Use this path when you already have Postgres installed or prefer not to use Docker.
+
+### 1. Create database and role
+
+Connect as a superuser and run:
+
+```sql
+CREATE USER opentcm WITH PASSWORD 'opentcm';
+CREATE DATABASE opentcm OWNER opentcm;
+GRANT ALL PRIVILEGES ON DATABASE opentcm TO opentcm;
+```
+
+Adjust the username, password, and database name if your environment requires it.
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` so `DATABASE_URL` points at your instance, for example:
+
+```
+DATABASE_URL=postgresql://opentcm:opentcm@localhost:5432/opentcm
+```
+
+The URL format is:
+
+```
+postgresql://<user>:<password>@<host>:<port>/<database>
+```
+
+### 3. Install dependencies and run the dev server
+
+```bash
+npm ci
+npm run dev
+```
+
+Open http://localhost:3000.
+
+Database migrations and seed data are added in milestone M1 (`npm run db:migrate`,
+`npm run db:seed`). Until then the app does not open a database connection.
+
+## npm scripts
+
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Start Next.js in development mode |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript (`tsc --noEmit`) |
+| `npm run test` | Vitest unit tests |
+
+## Troubleshooting
+
+- **Port 5432 already in use:** Stop the other Postgres instance or change the
+  published port in `docker-compose.yml` and update `DATABASE_URL` accordingly.
+- **Port 3000 already in use:** Run `npm run dev -- --port 3001` (or set the port
+  in the compose `command` for the app service).
+- **`.env` not loaded:** Next.js loads `.env` automatically for local development.
+  Ensure the file exists at the repository root and is not committed (it is
+  listed in `.gitignore`).
