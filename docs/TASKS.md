@@ -178,7 +178,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-7 · Trash view
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M3-6
+- **Owner:** Composer · **Status:** done · **Needs:** M3-6
 - Paginated, filterable trash table (search + directory, trashed-at column); per-row
   Restore and Delete-permanently; selection mode with bulk Restore and bulk permanent
   delete; typed confirmation (count or `DELETE`) for anything permanent.
