@@ -46,7 +46,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
   uniqueness incl. root, step-position uniqueness, cascades and SET NULL).
 
 ### M1-2 · API contract: `docs/API.md` + Zod schemas
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M1-1
+- **Owner:** Grok 4.6 · **Status:** review · **Needs:** M1-1
 - Full request/response/error specification for every PLAN §6 endpoint — including
   projects, trash, bulk-trash/restore/purge with the `{ ids } | { all, filter }`
   envelope, and pagination parameters/metadata — with JSON examples; matching Zod

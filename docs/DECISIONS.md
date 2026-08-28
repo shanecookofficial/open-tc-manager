@@ -55,3 +55,29 @@ on `test_steps`: drizzle-orm 0.45 cannot emit `DEFERRABLE`, so that clause is
 a hand-edit of the generated migration. `UNIQUE NULLS NOT DISTINCT` on
 directories, prefix/length CHECKs, cascades, and `ON DELETE SET NULL` are all
 expressed in schema.ts and emitted by drizzle-kit.
+
+---
+
+**2026-08-28 — API contract freeze candidate (M1-2).** `docs/API.md` plus
+`src/lib/contracts/` are the interface Composer mocks and Grok implements.
+Choices worth not rediscovering:
+
+- JSON ids are numbers (`bigint({ mode: "number" })`).
+- Bulk trash/restore require `projectId` _plus_ the XOR envelope
+  `{ ids } | { all: true, filter? }`; purge takes the XOR envelope only
+  because the project is in the URL. `ids` and `all` together is invalid.
+- `directoryId` omitted = whole project; JSON/`query` null = root only;
+  a number = that folder, non-recursive.
+- GET-by-id and GET-by-display-number return trashed cases (`deletedAt`
+  set); list endpoints do not. Permanent delete of a non-trashed case is
+  `409 CASE_NOT_TRASHED`.
+- PUT replaces steps atomically; request steps have no ids; step ids are
+  not stable across PUT. Zero steps are allowed.
+- Prefix change has no confirm flag in the API (UI warning only).
+- Directory `trash_contents` leaves contained cases trashed at root
+  (folders are gone). `move_contents_to_parent` does not move already-
+  trashed cases (they SET NULL and restore to root).
+- Bulk success body is `{ count }`. Directory delete returns 200 with
+  counts; project/permanent-case delete return 204.
+- Error codes are a closed enum (see API.md §1.3) inside
+  `{ error: { code, message } }` — no `details` array in v1.
