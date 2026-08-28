@@ -109,3 +109,16 @@ and name clashes map from Postgres unique violations
 (`projects_prefix_unique` → `PREFIX_TAKEN`, `projects_name_unique` →
 `NAME_TAKEN`) rather than a pre-check, so the unique index is the source
 of truth under races.
+
+---
+
+**2026-08-28 — Directory tree & delete modes (M2-3).** Cycle detection
+walks from the proposed parent up to root; if the moving directory is
+seen, the request is `CYCLE_DETECTED` (covers self and any descendant).
+Subtree membership is computed in memory (`collectSubtreeIds`) from the
+project's directory rows. `trash_contents` soft-deletes active cases in
+the subtree then deletes the folder so `ON DELETE SET NULL` leaves those
+cases trashed at root. `move_contents_to_parent` reparents immediate
+child folders and direct _active_ cases; already-trashed cases stay put
+and become root via SET NULL. Sibling-name collisions abort the
+transaction with `SIBLING_NAME_TAKEN`.

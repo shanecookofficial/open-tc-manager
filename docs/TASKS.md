@@ -91,7 +91,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M2-3 · Directory endpoints
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M2-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M2-1
 - `GET /projects/:id/tree`, `POST /directories`, `PATCH /directories/:id`,
   `DELETE /directories/:id?mode=...` incl. cycle rejection and both delete modes
   (`trash_contents` soft-deletes cases; `move_contents_to_parent`).

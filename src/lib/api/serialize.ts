@@ -1,5 +1,8 @@
-import type { Project as ProjectRow } from "@/lib/db/schema";
-import type { Project } from "@/lib/contracts";
+import type {
+  Directory as DirectoryRow,
+  Project as ProjectRow,
+} from "@/lib/db/schema";
+import type { Directory, Project } from "@/lib/contracts";
 
 export function toIso(date: Date): string {
   return date.toISOString();
@@ -22,6 +25,17 @@ export function serializeProject(row: ProjectRow): Project {
     name: row.name,
     prefix: row.prefix,
     nextCaseNumber: row.nextCaseNumber,
+    createdAt: toIso(row.createdAt),
+    updatedAt: toIso(row.updatedAt),
+  };
+}
+
+export function serializeDirectory(row: DirectoryRow): Directory {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    parentId: row.parentId,
+    name: row.name,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
   };
