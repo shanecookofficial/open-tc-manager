@@ -18,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run db:seed && npm run build && npm run start",
+    command: "npm run db:seed && npm run build && npm run start:standalone",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

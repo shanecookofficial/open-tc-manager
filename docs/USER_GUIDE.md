@@ -30,12 +30,17 @@ projects, or edit an existing one.
 
 Each project has a directory tree in the left sidebar:
 
-- **All test cases** — every active case in the project.
-- **Project root** — cases not assigned to a folder.
+- **All test cases** — every active case in the project (this is the default view).
 - **Folders** — nested to any depth; click a folder to filter the case list.
 
-Use the **⋯** menu on a folder (or on “All test cases”) to **New folder**, **Rename**,
-**Move**, or **Delete**.
+Cases with no folder live at the **project root**. That placement is chosen in the
+create/move dialogs (the picker labels it “Project root”); it is not a separate
+row in the repository sidebar.
+
+Use the **⋯** menu:
+
+- On **All test cases**: **New folder…** only (create a top-level folder).
+- On a folder: **New subfolder…**, **Rename…**, **Move…**, or **Delete…**.
 
 When deleting a non-empty folder you choose:
 
@@ -73,8 +78,9 @@ Open any case from the list to view the full rendered description and steps. Use
 The search box filters by **title** or **case number** (e.g. `WEB-7` or
 `valid credentials`). Search applies within the currently selected directory filter.
 
-Pagination controls at the bottom of the list show page numbers and let you change
-page size via the URL (`?pageSize=25`).
+Pagination controls at the bottom of the list show **Page N of M** with
+**Previous** / **Next**. There is no page-size picker in the UI; change page size
+via the URL (`?pageSize=25`).
 
 ---
 
@@ -104,11 +110,12 @@ and filter trash the same way as the main list.
 | Action | Effect |
 | --- | --- |
 | **Restore** | Returns the case to its original directory, or **project root** if that folder no longer exists. |
-| **Delete permanently** | Removes the case forever. Requires typing **`DELETE`** to confirm. |
+| **Delete permanently** | Removes the case forever. The dialog asks you to type **`DELETE`** to confirm. |
 
 **Selection mode** in trash works like the repository: select rows or **Select all N
-matching**, then **Restore** or **Delete permanently**. Bulk permanent delete requires
-typing the **exact number** of cases being deleted.
+matching**, then **Restore** or **Delete permanently**. Bulk permanent delete asks
+you to type the **count** of cases being deleted **or** the word **`DELETE`**
+(the dialog label is `N or DELETE`).
 
 Permanent deletion cannot be undone.
 

@@ -1,0 +1,1 @@
+# Keep this directory in git so the production Docker image can COPY public/.

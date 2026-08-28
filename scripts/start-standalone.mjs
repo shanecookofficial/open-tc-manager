@@ -6,7 +6,10 @@ import { spawn } from "node:child_process";
 import { cpSync, existsSync } from "node:fs";
 import path from "node:path";
 
+import { config as loadEnv } from "dotenv";
+
 const root = process.cwd();
+loadEnv({ path: path.join(root, ".env") });
 const standaloneDir = path.join(root, ".next", "standalone");
 const serverEntry = path.join(standaloneDir, "server.js");
 

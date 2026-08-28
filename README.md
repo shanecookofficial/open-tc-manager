@@ -35,11 +35,16 @@ MIT licensed · [Setup guide](docs/SETUP.md) · [User guide](docs/USER_GUIDE.md)
 git clone https://github.com/shanecookofficial/open-tc-manager.git
 cd open-tc-manager
 cp .env.example .env
-# Optional: set SEED_DEMO_DATA=true in .env for demo data on first boot
+# Optional: set SEED_DEMO_DATA=true in .env for demo data on first boot only,
+# then set it back to false (see docs/SETUP.md).
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000 — **Create your first project** if you skipped seed;
+the WEB/API demo if you set `SEED_DEMO_DATA=true`.
+
+OpenTCM v1 has **no authentication**. Use it only on a closed or trusted network
+([Security](#security)).
 
 Full instructions (upgrades, backups, demo data, manual Postgres): **[docs/SETUP.md](docs/SETUP.md)**
 

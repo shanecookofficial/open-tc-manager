@@ -1,16 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# --- dependencies (production only) -------------------------------------------
-FROM node:22-bookworm-slim AS deps
-WORKDIR /app
-
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-
 # --- build --------------------------------------------------------------------
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
@@ -23,9 +12,15 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# Next.js `COPY public` in the runtime stage requires this directory to exist.
+RUN mkdir -p public
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# `next build` imports API route modules, which construct a pg Pool. There is no
+# database during the image build; this placeholder is builder-stage only and is
+# not present in the runtime image. Pages that query Postgres are dynamic.
+ENV DATABASE_URL=postgresql://127.0.0.1:1/opentcm_build_placeholder
 
 RUN npm run build
 

@@ -229,10 +229,14 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M4-3 · Adversarial docs walkthrough
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M4-2
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M4-2
 - Execute `docs/SETUP.md` verbatim (both paths) on a clean environment; file an issue
   for every deviation, ambiguity, or missing step; Composer fixes; repeat until clean.
 - **Accept:** one uninterrupted run of each path succeeds with no undocumented action.
+- _M4-3 (Grok 4.6): Docker path desk-checked (Docker unavailable on the agent VM).
+  Manual path executed verbatim; blockers and misleading steps corrected in the
+  same commit (migrate/standalone load `.env`, homepage `force-dynamic`, Dockerfile
+  build-time `DATABASE_URL` + `public/`, dump `--clean --if-exists`)._
 
 ## M5 — Hardening & v0.1.0
 
