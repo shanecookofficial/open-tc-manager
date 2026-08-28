@@ -28,7 +28,7 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 - **Accept:** `docker compose up` serves the placeholder app connected to Postgres.
 
 ### M0-3 · CI pipeline
-- **Owner:** Composer · **Status:** todo · **Needs:** M0-1
+- **Owner:** Composer · **Status:** done · **Needs:** M0-1
 - GitHub Actions on PR: lint, typecheck, unit tests, build. Postgres service container
   prepared (used from M1 on). Required check for merge.
 - **Accept:** pipeline green on a trivial PR; failures block merge.
