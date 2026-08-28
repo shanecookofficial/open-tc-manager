@@ -150,12 +150,12 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M3-4 · Case editor
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M3-1, M3-2
+- **Owner:** Composer · **Status:** done · **Needs:** M3-1, M3-2
 - Create + edit form: title, directory picker, description editor, dynamic step rows
   (required action, optional expected result, preview toggles, insert/remove,
   drag + keyboard reordering), inline validation.
-- **Accept:** Playwright: create case with 3 steps incl. reorder; submitting empty
-  action shows inline error, not a request.
+- **Accept:** Playwright: create case with 3 steps incl. reorder against live API;
+  submitting empty action shows inline error, not a request.
 
 ### M3-5 · Directory management UI
 

@@ -83,6 +83,7 @@ export function MoveCaseDialog({
               allCount={tree.activeCaseCount}
               selection={selection}
               onSelect={setSelection}
+              placementMode
             />
           </div>
         ) : (

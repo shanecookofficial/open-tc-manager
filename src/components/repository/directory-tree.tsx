@@ -17,6 +17,8 @@ type DirectoryTreeProps = {
   allCount: number;
   selection: DirectorySelection;
   onSelect: (selection: DirectorySelection) => void;
+  /** When true, the root node is "Project root" for case placement instead of "All test cases". */
+  placementMode?: boolean;
 };
 
 function TreeNodeButton({
@@ -102,6 +104,7 @@ export function DirectoryTree({
   allCount,
   selection,
   onSelect,
+  placementMode = false,
 }: DirectoryTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
 
@@ -128,7 +131,9 @@ export function DirectoryTree({
     }
   };
 
-  const allSelected = selection.type === "all";
+  const rootSelected = placementMode
+    ? selection.type === "root"
+    : selection.type === "all";
 
   return (
     <nav aria-label="Directory tree" className="space-y-1">
@@ -137,17 +142,23 @@ export function DirectoryTree({
         data-tree-item
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent",
-          allSelected && "bg-accent font-medium",
+          rootSelected && "bg-accent font-medium",
         )}
-        aria-current={allSelected ? "page" : undefined}
-        onClick={() => onSelect({ type: "all" })}
+        aria-current={rootSelected ? "page" : undefined}
+        onClick={() =>
+          onSelect(placementMode ? { type: "root" } : { type: "all" })
+        }
         onKeyDown={handleKeyNavigate}
       >
         <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate">All test cases</span>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {allCount}
+        <span className="flex-1 truncate">
+          {placementMode ? "Project root" : "All test cases"}
         </span>
+        {!placementMode ? (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {allCount}
+          </span>
+        ) : null}
       </button>
 
       {directories.map((node) => (

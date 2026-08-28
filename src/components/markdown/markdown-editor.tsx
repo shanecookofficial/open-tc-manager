@@ -37,7 +37,7 @@ export function MarkdownEditor({
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="text-sm font-medium">
+        <label id={`${id}-label`} htmlFor={id} className="text-sm font-medium">
           {label}
         </label>
         <div
@@ -83,7 +83,7 @@ export function MarkdownEditor({
       {tab === "write" ? (
         <textarea
           id={id}
-          aria-labelledby={`${id}-write-tab`}
+          aria-labelledby={`${id}-label`}
           rows={rows}
           value={value}
           onChange={(event) => onChange(event.target.value)}
