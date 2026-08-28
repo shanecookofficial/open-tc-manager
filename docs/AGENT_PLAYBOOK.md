@@ -1,7 +1,8 @@
 # Agent Playbook — How Grok 4.6 and Composer Work Together
 
 This document is the collaboration protocol for the AI implementation agents building
-OpenTCM. Read `docs/PLAN.md` first; read `docs/TASKS.md` to find your work.
+TestTrove. Read `docs/PLAN.md` first; read `docs/TASKS.md` to find your work.
+Binding product decisions live in `docs/DECISIONS.md`.
 
 ---
 
@@ -11,14 +12,16 @@ Two agents, complementary strengths, mutual review:
 
 - **Grok 4.6 — "Backend/Architecture" lane.**
   Owns: database schema and migrations, the API contract (`docs/API.md`), API endpoint
-  implementation, transactional logic (step replacement, directory moves, cycle
-  detection, delete modes), integration tests, markdown sanitization policy.
+  implementation, transactional logic (per-project case numbering, step replacement,
+  directory moves, cycle detection, directory delete modes, soft delete/restore, bulk
+  trash/restore/purge), integration tests, markdown sanitization policy.
   Reviews: everything Composer ships.
 
 - **Composer — "Frontend/Delivery" lane.**
-  Owns: project scaffolding, CI pipeline, all UI screens and components, forms and
-  client-side validation, markdown rendering components, Docker packaging, setup and
-  user documentation, seed/demo data content.
+  Owns: project scaffolding, CI pipeline, all UI screens and components (incl. project
+  switcher, selection mode, and trash), forms and client-side validation, markdown
+  rendering components, Docker packaging, setup and user documentation, seed/demo data
+  content.
   Reviews: everything Grok ships.
 
 Lanes are defaults, not walls. If a task blocks and the owning agent is saturated, the
@@ -39,8 +42,9 @@ from the other agent.
    requesting review. Never merge red.
 5. **No new dependencies without a one-line justification** in the PR description.
    Prefer the stack already chosen in PLAN §4.
-6. **No v2 features.** Anything touching runs/results, users/auth, or integrations gets
-   the PR closed with a pointer to PLAN §2.
+6. **No roadmap features.** Anything touching runs/results, users/auth, change history,
+   version control, step-text search, import/export, or integrations gets the PR closed
+   with a pointer to PLAN §2.
 
 ## 3. Workflow per task
 
@@ -79,7 +83,7 @@ Agents are asynchronous and share no memory. All coordination happens in-repo:
   concrete diffs.
 - **`docs/DECISIONS.md`** — append-only log of decisions that outlive a single PR
   (e.g. "chose deferred unique constraint for step reordering because …"). One dated
-  paragraph per decision. Create the file with its first entry.
+  paragraph per decision. It already holds the product owner's binding decisions.
 - Never leave knowledge only in a chat transcript, commit message, or your own head.
 
 ## 6. Quality bars (apply to every PR)
@@ -97,10 +101,12 @@ Agents are asynchronous and share no memory. All coordination happens in-repo:
 ## 7. Verification duties
 
 - **Grok** maintains integration tests that run the API against a real Postgres
-  (docker service in CI) covering: numbering immutability, atomic step replacement,
-  move-with-cycle rejection, all three directory delete modes, and search.
+  (docker service in CI) covering: per-project numbering immutability and concurrency,
+  atomic step replacement, move-with-cycle rejection, directory delete modes,
+  soft-delete/restore semantics, purge safety (active cases untouchable), and search.
 - **Composer** maintains the Playwright smoke suite covering the M3 gate journey
-  (create dir → create case with markdown steps → view rendered → edit/reorder →
-  move → delete) plus an XSS-inertness check.
+  (create project → create dir → create case with markdown steps → view rendered →
+  edit/reorder → move → trash → restore → purge via typed confirm) plus an
+  XSS-inertness check.
 - The M4 docs gate is adversarial: **Grok**, not Composer, executes `docs/SETUP.md`
   verbatim on a clean environment and files issues for every deviation.

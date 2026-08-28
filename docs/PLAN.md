@@ -1,8 +1,13 @@
-# OpenTCM — Product & Delivery Plan
+# TestTrove — Product & Delivery Plan
 
-**Working title:** OpenTCM (Open Test Case Manager) — placeholder pending a real name.
-**Status:** v1 planning. This document is the source of truth for scope and architecture decisions.
-**Audience:** The AI implementation agents (Grok 4.6 and Composer), human maintainers, and contributors.
+**Working title:** TestTrove — chosen after "OpenTCM" was found to collide with an
+existing research tool ([arXiv:2504.20118](https://arxiv.org/abs/2504.20118)); no
+existing product named TestTrove was found. Still swappable before v0.1 if the product
+owner prefers another name.
+**Status:** v1 planning, decisions locked (see `docs/DECISIONS.md`). This document is
+the source of truth for scope and architecture.
+**Audience:** The AI implementation agents (Grok 4.6 and Composer), human maintainers,
+and contributors.
 
 ---
 
@@ -17,10 +22,12 @@ non-DBA to follow.
 
 1. **Simple over powerful.** Every screen should be understandable without a manual.
 2. **Zero-friction setup.** One `docker compose up` path, and one "bring your own
-   Postgres" path with copy-paste instructions.
+   Postgres" path with copy-paste instructions and a plain `.env` file.
 3. **Markdown everywhere it matters.** Descriptions, steps, and expected results render
    markdown so teams can write rich, precise instructions.
-4. **Boring, proven technology.** No exotic dependencies; contributors should feel at home.
+4. **Hard to lose work.** Deletion is soft by default; permanent deletion is a
+   deliberate, multi-step act.
+5. **Boring, proven technology.** No exotic dependencies; contributors should feel at home.
 
 ---
 
@@ -28,34 +35,46 @@ non-DBA to follow.
 
 ### In scope (v1)
 
-- Create, read, update, and delete **test cases**.
-- Test cases have:
+- **Projects** as the top-level unit of organization. Each project has a name and a
+  **configurable case-number prefix** (e.g. `WEB`, `API`), set per project by the org.
+- Create, read, update, and delete **test cases**. Test cases have:
   - a **title** (required),
-  - a **case number** (required, auto-assigned, human-facing, e.g. `TC-42`),
+  - a **case number** (required, auto-assigned per project, human-facing, e.g. `WEB-42`),
   - an optional **description** (markdown),
   - an ordered list of **steps**, where each step has a required **action** (markdown)
     and an optional **expected result** (markdown).
-- A **directory tree** for organization: all cases live under an implicit main (root)
-  directory; teams may create arbitrarily nested sub-directories and move cases and
-  directories around.
-- A clean, intuitive web UI: tree navigation, case list, case detail with rendered
-  markdown, and a case editor with live markdown preview.
-- **PostgreSQL** persistence with automated migrations.
+- A **directory tree** per project: all cases live under the project's implicit main
+  (root) directory; teams may create arbitrarily nested sub-directories and move cases
+  and directories around.
+- **Soft delete with a Trash view.** Deleting a case moves it to the project's trash.
+  Permanent deletion happens only from the trash, per case or in bulk via an explicit
+  selection mode (checkboxes, select-all), always behind a strong confirmation.
+- **Pagination and filtering** on every case listing (main lists and trash), designed
+  for projects with thousands of cases.
+- A clean, intuitive web UI: project switcher, tree navigation, case list, case detail
+  with rendered markdown, case editor with live markdown preview, trash management.
+- **PostgreSQL** persistence with automated migrations; all runtime configuration via
+  environment variables / `.env` file.
 - First-class **setup documentation**: Docker Compose quickstart and a manual Postgres
   configuration guide.
 - Seed/demo data so a fresh install isn't an empty void.
 
-### Explicitly out of scope (v1) — planned for later
+### Explicitly out of scope (v1) — confirmed roadmap for later versions
 
-- Test **runs / results** (manual or automated reporting), pass/fail history.
-- **Users, authentication, roles, permissions.** v1 is intended to run inside a trusted
-  network; there is no login.
-- Integrations (Jira, CI systems), webhooks, API tokens.
-- Attachments / image uploads (markdown may reference images by URL).
-- Versioning/history of test cases, comments, tags, custom fields.
+In priority order per the product owner:
 
-Out-of-scope items must not leak complexity into v1, but the schema should not paint us
-into a corner (see §5 notes on future-proofing).
+1. **Users + change history**: accounts so every test case change is attributable and
+   browsable as history/audit trail.
+2. **Test runs / results**: manual and automated result reporting, pass/fail history.
+3. **Search by step text** (full-text search via Postgres `tsvector`).
+4. **Import/export** (deferred explicitly).
+5. **Test case version control** (acknowledged as likely complex; furthest out).
+
+Also out: authentication (v1 targets closed/trusted networks), integrations, webhooks,
+attachments/uploads (markdown may reference images by URL), tags, custom fields.
+
+Out-of-scope items must not leak complexity into v1, but the schema must not paint us
+into a corner (see §5 future-proofing notes).
 
 ---
 
@@ -65,19 +84,23 @@ into a corner (see §5 notes on future-proofing).
   creation, keyboard-friendly step editing, markdown for precision.
 - **Developer:** occasionally reads a case to reproduce a scenario. Needs fast search of
   titles/numbers and legible rendering.
-- **Team lead / admin-ish person:** sets up the instance, organizes the directory tree.
+- **Team lead / admin-ish person:** sets up the instance, creates projects and prefixes,
+  organizes the directory tree, curates the trash.
 
 Core journeys that must be excellent:
 
 1. Deploy the app and reach a working UI in under 10 minutes.
-2. Create a directory, create a test case with 5 steps, and read it back — all in under
-   2 minutes with no documentation.
+2. Create a project with prefix `WEB`, a directory, and a test case with 5 steps — then
+   read it back — all in under 3 minutes with no documentation.
 3. Reorganize: move a case (or a whole directory) to another directory without breaking
    its case number.
+4. Clean house safely: filter a 3,000-case project down to an obsolete subset, select
+   them with checkboxes (or select-all), trash them, then permanently purge them from
+   the trash — without any chance of doing it by accident.
 
 ---
 
-## 4. Technology stack (decision)
+## 4. Technology stack (decision — signed off by product owner)
 
 | Layer | Choice | Rationale |
 | --- | --- | --- |
@@ -91,43 +114,56 @@ Core journeys that must be excellent:
 | Testing | Vitest (unit), Playwright (e2e smoke) | Cheap to run in CI. |
 | Packaging | Dockerfile + docker-compose.yml (app + postgres) | The "anyone can use it" path. |
 | CI | GitHub Actions: lint, typecheck, unit tests, build, e2e smoke | Every PR must be green. |
-| License | MIT (pending confirmation, see open questions) | Maximally permissive for adoption. |
+| License | **MIT** | Product owner wants no liability and unrestricted use: MIT's warranty/liability disclaimer plus maximal permissiveness fits exactly. |
 
 All API access goes through JSON REST endpoints under `/api/v1/*` (not server actions),
-so the API doubles as a public automation surface later (e.g. automated result
-reporting in v2 will need it anyway).
+so the API doubles as a public automation surface later (automated result reporting in
+a future version will need it anyway).
 
 ---
 
 ## 5. Data model
 
-Three tables. The root ("main directory") is **implicit**: `directory_id = NULL` means
-the case lives at the root; `parent_id = NULL` means the directory is a top-level child
-of the root.
+Four tables. Within a project, the root ("main directory") is **implicit**:
+`directory_id = NULL` means the case lives at the project root; `parent_id = NULL`
+means the directory is a top-level child of the project root.
 
 ```sql
--- directories: arbitrarily nested folders for organizing cases
+-- projects: top-level unit; owns the case-number prefix and counter
+CREATE TABLE projects (
+  id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name             TEXT NOT NULL UNIQUE CHECK (length(trim(name)) BETWEEN 1 AND 120),
+  prefix           TEXT NOT NULL UNIQUE CHECK (prefix ~ '^[A-Z][A-Z0-9]{1,9}$'),
+  next_case_number INTEGER NOT NULL DEFAULT 1,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- directories: arbitrarily nested folders within a project
 CREATE TABLE directories (
   id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  parent_id   BIGINT REFERENCES directories(id) ON DELETE CASCADE,  -- NULL = child of root
+  project_id  BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  parent_id   BIGINT REFERENCES directories(id) ON DELETE CASCADE,  -- NULL = child of project root
   name        TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE NULLS NOT DISTINCT (parent_id, name)   -- sibling names unique, incl. at root
+  UNIQUE NULLS NOT DISTINCT (project_id, parent_id, name)  -- sibling names unique, incl. at root
 );
 
 -- test_cases: the core entity
 CREATE TABLE test_cases (
   id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  case_number  INTEGER NOT NULL UNIQUE,           -- human-facing, rendered as "TC-<n>"
+  project_id   BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  case_number  INTEGER NOT NULL,                  -- per-project; rendered "<PREFIX>-<n>"
   title        TEXT NOT NULL CHECK (length(trim(title)) BETWEEN 1 AND 200),
   description  TEXT,                              -- optional, markdown
-  directory_id BIGINT REFERENCES directories(id) ON DELETE RESTRICT, -- NULL = root
+  directory_id BIGINT REFERENCES directories(id) ON DELETE SET NULL, -- NULL = project root
+  deleted_at   TIMESTAMPTZ,                       -- NULL = active; set = in trash
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, case_number)
 );
-
-CREATE SEQUENCE case_number_seq;  -- assigned at creation, never reused, never renumbered
+CREATE INDEX ON test_cases (project_id, deleted_at, directory_id);
 
 -- test_steps: ordered steps belonging to a case
 CREATE TABLE test_steps (
@@ -142,24 +178,48 @@ CREATE TABLE test_steps (
 
 ### Behavioral rules
 
-- **Case numbers are immutable and global.** Assigned from `case_number_seq` on create,
-  displayed as `TC-<n>`. Moving a case between directories never changes its number.
-  Deleting a case never frees its number for reuse.
+- **Projects & prefixes.** Every directory and case belongs to exactly one project.
+  Prefixes are org-configurable per project: uppercase, 2–10 chars, unique across the
+  instance. Numbering is assigned from the project's counter atomically
+  (`UPDATE projects SET next_case_number = next_case_number + 1 … RETURNING`).
+  A prefix **may be edited** later; displayed identifiers re-render with the new prefix
+  (the stored `case_number` integers never change) — the UI warns about this when editing.
+- **Case numbers are immutable per project and never reused.** Moving a case between
+  directories never changes its number. Trashing or permanently deleting a case never
+  frees its number.
+- **Soft delete (Trash).** "Delete" in the UI sets `deleted_at` after a confirmation.
+  Trashed cases disappear from all normal lists, tree counts, and search, and appear in
+  the project's **Trash** view. From the trash a case can be **restored** (to its
+  original directory, or to the project root if that directory no longer exists) or
+  **permanently deleted**. Permanent deletion is only possible for already-trashed
+  cases and always requires a strong confirmation (§7).
+- **Bulk operations.** Both the main case list and the trash have an explicit selection
+  mode (a "Select" button reveals per-row checkboxes plus select-all). Main list:
+  bulk move-to-trash. Trash: bulk restore and bulk permanent delete. Select-all
+  operates on **everything matching the current filter**, not just the visible page;
+  the confirmation always states the exact count.
+- **Pagination & filtering everywhere.** All case listings (main and trash) are
+  server-paginated (default 50/page) and filterable by text (title + case number) and
+  directory. Built for thousands of cases per project.
 - **Steps are replaced atomically.** The update-case endpoint accepts the full ordered
   step list and replaces it in one transaction (deferred unique constraint makes
   reordering safe). A case may have zero steps while being drafted, but the UI nudges
   toward at least one.
-- **Directory deletion** requires the directory to be empty of test cases (recursively),
-  or the client passes an explicit `mode`: `delete_contents` (cascade cases too) or
-  `move_contents_to_parent`. Empty sub-directories cascade.
+- **Directory deletion** requires the directory to be empty of active test cases
+  (recursively), or the client passes an explicit `mode`: `trash_contents` (soft-delete
+  contained cases) or `move_contents_to_parent`. Empty sub-directories are removed with
+  their parent. Trashed cases whose directory is later deleted keep living in the trash
+  (`directory_id` becomes `NULL` via `ON DELETE SET NULL`) and restore to the project root.
 - **Cycle prevention:** moving a directory under its own descendant is rejected server-side.
 - **Markdown** is stored raw; rendering + sanitization happen client-side with a strict
   allowlist (no raw HTML pass-through, no scripts).
 - **Concurrency:** last-write-wins in v1, with `updated_at` returned so a stale-write
   warning can be added later.
-- **Future-proofing (do not build, just don't block):** `test_cases.id` is separate from
-  `case_number` so runs/results tables in v2 can FK to `id`; all timestamps exist so
-  history features can be layered on.
+- **Future-proofing (do not build, just don't block):** `test_cases.id` is separate
+  from `case_number` so future runs/results and change-history tables can FK to `id`;
+  timestamps exist everywhere so history features can be layered on; change history
+  (roadmap #1) will be an append-only events table keyed to `test_cases.id` — nothing
+  in v1 conflicts with that.
 
 ---
 
@@ -168,45 +228,69 @@ CREATE TABLE test_steps (
 All endpoints return JSON, use Zod-validated bodies, and share an error envelope
 `{ "error": { "code": string, "message": string } }`. The full request/response schemas
 live in `docs/API.md` (task M1-2) and are the contract both agents build against.
+Unless noted, case endpoints operate on **active** (non-trashed) cases.
 
 | Method & path | Purpose |
 | --- | --- |
-| `GET /api/v1/tree` | Full directory tree with per-directory case counts (drives the sidebar). |
-| `POST /api/v1/directories` | Create directory (`name`, optional `parentId`). |
+| `GET /api/v1/projects` · `POST /api/v1/projects` | List / create projects (`name`, `prefix`). |
+| `PATCH /api/v1/projects/:id` | Rename and/or change prefix (with re-render warning semantics). |
+| `DELETE /api/v1/projects/:id` | Delete an empty project only (no active or trashed cases). |
+| `GET /api/v1/projects/:id/tree` | Directory tree with per-directory active-case counts (drives the sidebar). |
+| `POST /api/v1/directories` | Create directory (`projectId`, `name`, optional `parentId`). |
 | `PATCH /api/v1/directories/:id` | Rename and/or move (`name?`, `parentId?` — `null` = root). |
 | `DELETE /api/v1/directories/:id?mode=...` | Delete per the rules in §5. |
-| `GET /api/v1/test-cases?directoryId=&q=&page=` | List cases in a directory (or root); `q` searches title + `TC-` number. |
-| `POST /api/v1/test-cases` | Create case with steps (`title`, `description?`, `directoryId?`, `steps[]`). |
-| `GET /api/v1/test-cases/:id` | Full case incl. ordered steps. Also resolvable by number: `GET /api/v1/test-cases/number/:n`. |
+| `GET /api/v1/test-cases?projectId=&directoryId=&q=&page=` | Paginated active cases; `q` searches title + case number. |
+| `POST /api/v1/test-cases` | Create case with steps (`projectId`, `title`, `description?`, `directoryId?`, `steps[]`). |
+| `GET /api/v1/test-cases/:id` | Full case incl. ordered steps. Also by display number: `GET /api/v1/test-cases/number/:prefix-:n`. |
 | `PUT /api/v1/test-cases/:id` | Full update: metadata + atomic step-list replacement. |
 | `PATCH /api/v1/test-cases/:id/move` | Change `directoryId` only. |
-| `DELETE /api/v1/test-cases/:id` | Hard delete (UI confirms first). |
+| `DELETE /api/v1/test-cases/:id` | **Soft delete** — moves the case to the trash. |
+| `POST /api/v1/test-cases/bulk-trash` | Bulk soft delete: `{ ids: [...] }` or `{ all: true, filter: {...} }`. Returns count. |
+| `GET /api/v1/projects/:id/trash?directoryId=&q=&page=` | Paginated, filterable trash listing. |
+| `POST /api/v1/test-cases/:id/restore` | Restore a trashed case (original directory, else project root). |
+| `POST /api/v1/test-cases/bulk-restore` | Bulk restore: same id/filter envelope as bulk-trash. |
+| `DELETE /api/v1/test-cases/:id/permanent` | Permanently delete one **trashed** case (409 if not trashed). |
+| `POST /api/v1/projects/:id/trash/purge` | Bulk permanent delete of trashed cases: `{ ids: [...] }` or `{ all: true, filter: {...} }`. Returns count. |
 | `GET /api/v1/health` | DB connectivity check for deploy verification. |
 
 ---
 
 ## 7. UI (v1 screens)
 
-Single-page-app feel, three main surfaces. Design language: clean, dense-but-breathable,
-light theme first, responsive down to tablet.
+Single-page-app feel. Design language: clean, dense-but-breathable, light theme first,
+responsive down to tablet. Empty states, loading skeletons, and error toasts are
+required on every surface — "simple yet intuitive" dies in the edge cases.
 
-1. **Repository view (home).**
-   Left: collapsible directory tree ("All test cases" root, folders with counts, context
-   actions: new folder, rename, move, delete). Right: case list for the selected
-   directory — `TC-n`, title, step count, updated date — with a search box (title/number)
-   and a "New test case" button.
-2. **Case detail view** (`/cases/TC-42`).
-   Title, number, breadcrumb path, rendered markdown description, and a two-column
-   steps table (`#` | Action | Expected result) with markdown rendered in cells.
-   Actions: Edit, Move, Delete (confirm dialog).
-3. **Case editor** (create + edit share one form).
+1. **Project switcher & management.**
+   Header dropdown to switch projects; dialogs to create a project (name + prefix with
+   live validation) and edit one (renaming a prefix shows an explicit "existing case
+   IDs will display with the new prefix" warning). First run with zero projects shows a
+   friendly "create your first project" onboarding screen.
+2. **Repository view (home, per project).**
+   Left: collapsible directory tree ("All test cases" root, folders with active-case
+   counts, context actions: new folder, rename, move, delete). Right: **paginated**
+   case list for the selected directory — `WEB-n`, title, step count, updated date —
+   with a search box (title/number) and a "New test case" button.
+   A **Select** button switches the list into selection mode: per-row checkboxes, a
+   select-all control (selects everything matching the current filter, with count),
+   and a bulk "Move to trash" action with confirmation. A trash link with count sits
+   in the sidebar footer.
+3. **Case detail view** (`/cases/WEB-42`).
+   Title, display number, breadcrumb path, rendered markdown description, and a
+   two-column steps table (`#` | Action | Expected result) with markdown rendered in
+   cells. Actions: Edit, Move, Delete (to trash, with confirm).
+4. **Case editor** (create + edit share one form).
    Title field, directory picker, markdown description with write/preview tabs, and a
    dynamic step list: each row has Action (required) and Expected result (optional)
-   textareas with preview toggles, drag-handle reordering, add/insert/remove row.
-   Client + server validation with inline errors.
-
-Empty states, loading skeletons, and error toasts are required for all three surfaces —
-"simple yet intuitive" dies in the edge cases.
+   textareas with preview toggles, drag-handle + keyboard reordering, add/insert/remove
+   row. Client + server validation with inline errors.
+5. **Trash view (per project).**
+   Paginated, filterable (search + directory) table of trashed cases with trashed-at
+   dates. Per-row actions: Restore, Delete permanently (typed confirmation). Selection
+   mode identical to the repository view enables bulk Restore and bulk **Delete
+   permanently** — the permanent-delete confirmation states the exact count and
+   requires typing it (or the word `DELETE`) to proceed. This is deliberately the only
+   place in the product where data can be destroyed.
 
 ---
 
@@ -218,10 +302,10 @@ Details, dependencies, and agent assignments are in `docs/TASKS.md`. Summary:
 | --- | --- | --- |
 | **M0 — Foundation** | Repo scaffold, tooling, CI, docker-compose skeleton runs "hello" app + Postgres. | CI green on PRs. |
 | **M1 — Contract** | Drizzle schema + migrations + seed script; `docs/API.md` frozen. | Both agents sign off on the contract (see playbook). |
-| **M2 — API** | All §6 endpoints implemented with unit/integration tests. | Endpoint tests green; seeded curl walkthrough works. |
-| **M3 — UI** | All §7 screens against the real API. | e2e smoke: create dir → create case → edit → move → delete. |
-| **M4 — Deploy & docs** | Production Dockerfile, compose file, `docs/SETUP.md` (incl. manual Postgres guide), README. | A fresh machine reaches the UI following only the docs. |
-| **M5 — Hardening & v0.1** | Bug bash, a11y pass, perf sanity (500 dirs / 5k cases), tag `v0.1.0`. | Release checklist complete. |
+| **M2 — API** | All §6 endpoints implemented with integration tests. | Endpoint tests green; seeded curl walkthrough works. |
+| **M3 — UI** | All §7 screens against the real API. | e2e smoke: create project → dir → case → edit → move → trash → restore → purge. |
+| **M4 — Deploy & docs** | Production Dockerfile, compose file, `docs/SETUP.md` (incl. manual Postgres + `.env` guide), README. | A fresh machine reaches the UI following only the docs. |
+| **M5 — Hardening & v0.1** | Bug bash, a11y pass, perf sanity (500 dirs / 5k cases incl. 1k trashed), tag `v0.1.0`. | Release checklist complete. |
 
 M2 and M3 run **in parallel** after M1 — that is the whole point of freezing the
 contract early: Composer builds UI against a mock/fixture layer derived from
@@ -234,28 +318,26 @@ contract early: Composer builds UI against a mock/fixture layer derived from
 | Risk | Mitigation |
 | --- | --- |
 | Agents drift from the contract while working in parallel | Contract freeze at M1; any change requires a `contract-change` PR both agents review (playbook §4). |
+| Bulk permanent delete destroys data unintentionally | Purge only operates on already-trashed cases; select-all confirmations state exact counts; typed confirmation; integration tests assert active cases are untouchable by purge. |
 | Markdown XSS | `rehype-sanitize` strict schema; e2e test injects `<script>` and asserts inert rendering. |
 | Tree/step ordering bugs (races, duplicates) | Atomic replacement in transactions; deferred unique constraints; integration tests for move/reorder/cycle cases. |
-| Scope creep toward v2 (results, users) | §2 out-of-scope list is binding; PRs adding v2 surface area are rejected. |
+| Per-project numbering races under concurrency | Single-row atomic counter update inside the create transaction; integration test hammers concurrent creates and asserts no gaps-by-collision/duplicates. |
+| Scope creep toward roadmap features (results, users, versioning) | §2 out-of-scope list is binding; PRs adding that surface area are rejected. |
 | "Easy setup" claim fails in the wild | M4 gate is a literal fresh-machine walkthrough of the docs, performed by the agent that did **not** write them. |
 
 ---
 
-## 10. Open questions for the product owner
+## 10. Decision log & remaining open items
 
-Defaults are chosen so work can proceed; answers override them.
+All previously open product questions were answered by the product owner on 2026-08-28;
+the binding record is `docs/DECISIONS.md`. Summary: MIT license; per-project
+configurable prefixes; soft delete + trash with deliberate bulk permanent deletion;
+pagination/filtering for large case volumes; no login (closed networks, `.env`
+configuration); stack approved; import/export deferred; search on titles/numbers for
+now with step-text search on the roadmap; roadmap priorities recorded in §2.
 
-1. **Name & branding** — "OpenTCM" is a placeholder. Any preferred name (repo will be
-   renamed accordingly)? *Default: keep placeholder until v0.1.*
-2. **License** — MIT assumed. Confirm, or prefer Apache-2.0/AGPL? *Default: MIT.*
-3. **Case number format** — global sequence rendered `TC-42`. Good, or do you want a
-   configurable prefix (e.g. per top-level directory) in v1? *Default: fixed global `TC-`.*
-4. **Delete semantics** — v1 hard-deletes cases after a confirm dialog (numbers never
-   reused). Acceptable, or do you want soft-delete/archive in v1? *Default: hard delete.*
-5. **Unauthenticated v1** — no users means no login; v1 assumes deployment inside a
-   trusted network. Acceptable? *Default: yes, with a prominent README warning.*
-6. **Stack sign-off** — any objection to Next.js/TypeScript/Drizzle (§4)? *Default: proceed.*
-7. **Import/export** — JSON export of a directory subtree is cheap and helps adoption;
-   in v1 or defer? *Default: defer to v1.1.*
-8. **Search depth** — v1 searches title + case number only (not step text). Sufficient
-   for v1? *Default: yes; full-text search of steps in v1.1 via Postgres `tsvector`.*
+Remaining open item:
+
+1. **Name confirmation** — "TestTrove" is the working title (verified free of obvious
+   collisions). Product owner may override any time before v0.1; renaming before M4
+   (docs milestone) is cheap.
