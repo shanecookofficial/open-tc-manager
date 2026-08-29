@@ -22,6 +22,7 @@ import {
 
 import { requireDirectory } from "./directories";
 import { ApiError, notFound } from "./errors";
+import { recordMutationEvent, type EventActor } from "./history";
 import { allocateCaseNumber, type DbExecutor } from "./numbering";
 import { paginated } from "./pagination";
 import { requireProject } from "./projects";
@@ -199,6 +200,15 @@ async function insertSteps(
   );
 }
 
+export async function replaceTestCaseSteps(
+  executor: DbExecutor,
+  testCaseId: number,
+  steps: TestStepInput[],
+) {
+  await executor.delete(testSteps).where(eq(testSteps.testCaseId, testCaseId));
+  await insertSteps(executor, testCaseId, steps);
+}
+
 export async function queryTestCaseSummaries(
   project: ProjectRow,
   filter: {
@@ -261,7 +271,10 @@ export async function listActiveTestCases(query: TestCaseListQuery) {
   );
 }
 
-export async function createTestCase(body: CreateTestCaseBody) {
+export async function createTestCase(
+  body: CreateTestCaseBody,
+  actor: EventActor,
+) {
   const directoryId = body.directoryId ?? null;
 
   const createdId = await db.transaction(async (tx) => {
@@ -279,6 +292,7 @@ export async function createTestCase(body: CreateTestCaseBody) {
       })
       .returning();
     await insertSteps(tx, row.id, body.steps ?? []);
+    await recordMutationEvent(tx, row, actor, "created");
     return row.id;
   });
 
@@ -315,12 +329,16 @@ export async function getTestCaseByDisplayNumber(display: string) {
   return assembleTestCase(row);
 }
 
-export async function updateTestCase(id: number, body: PutTestCaseBody) {
+export async function updateTestCase(
+  id: number,
+  body: PutTestCaseBody,
+  actor: EventActor,
+) {
   await db.transaction(async (tx) => {
     const current = await requireTestCase(id, tx, true);
     assertCaseActive(current);
     await assertDirectoryForWrite(current.projectId, body.directoryId, tx);
-    await tx
+    const [updated] = await tx
       .update(testCases)
       .set({
         title: body.title,
@@ -328,14 +346,19 @@ export async function updateTestCase(id: number, body: PutTestCaseBody) {
         directoryId: body.directoryId,
         updatedAt: new Date(),
       })
-      .where(eq(testCases.id, id));
-    await tx.delete(testSteps).where(eq(testSteps.testCaseId, id));
-    await insertSteps(tx, id, body.steps);
+      .where(eq(testCases.id, id))
+      .returning();
+    await replaceTestCaseSteps(tx, id, body.steps);
+    await recordMutationEvent(tx, updated, actor, "updated");
   });
   return assembleTestCase(await requireTestCase(id));
 }
 
-export async function moveTestCase(id: number, body: MoveTestCaseBody) {
+export async function moveTestCase(
+  id: number,
+  body: MoveTestCaseBody,
+  actor: EventActor,
+) {
   const row = await db.transaction(async (tx) => {
     const current = await requireTestCase(id, tx, true);
     assertCaseActive(current);
@@ -346,12 +369,13 @@ export async function moveTestCase(id: number, body: MoveTestCaseBody) {
       .set({ directoryId: body.directoryId, updatedAt: new Date() })
       .where(eq(testCases.id, id))
       .returning();
+    await recordMutationEvent(tx, updated, actor, "moved");
     return updated;
   });
   return assembleTestCase(row);
 }
 
-export async function softDeleteTestCase(id: number) {
+export async function softDeleteTestCase(id: number, actor: EventActor) {
   const row = await db.transaction(async (tx) => {
     const current = await requireTestCase(id, tx, true);
     assertCaseActive(current);
@@ -361,6 +385,7 @@ export async function softDeleteTestCase(id: number) {
       .set({ deletedAt: now, updatedAt: now })
       .where(eq(testCases.id, id))
       .returning();
+    await recordMutationEvent(tx, updated, actor, "trashed");
     return updated;
   });
   return assembleTestCase(row);

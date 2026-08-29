@@ -5,6 +5,7 @@ import {
 } from "@/lib/contracts";
 import { deleteDirectory, updateDirectory } from "@/lib/api/directories";
 import { apiHandler } from "@/lib/api/handler";
+import { requireActor } from "@/lib/api/history";
 import { json } from "@/lib/api/http";
 
 export const PATCH = apiHandler(
@@ -15,7 +16,7 @@ export const PATCH = apiHandler(
 
 export const DELETE = apiHandler(
   { params: directoryIdParamSchema, query: directoryDeleteQuerySchema },
-  async ({ params, query }) =>
-    json(await deleteDirectory(params.id, query.mode)),
+  async ({ params, query, user }) =>
+    json(await deleteDirectory(params.id, query.mode, requireActor(user))),
   { auth: "member" },
 );

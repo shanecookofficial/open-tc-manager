@@ -53,7 +53,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A3-1 · Record events on every case mutation
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** A2-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** A2-1
 - Same transaction as create/PUT/move/trash/restore and bulk per-case. Snapshot
   shape per PLAN-v1.1 §5. Actor denormalized from the session user.
 - **Accept:** integration: create→one `created` event; PUT→`updated`; move→`moved`;

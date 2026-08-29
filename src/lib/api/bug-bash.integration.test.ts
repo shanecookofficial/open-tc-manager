@@ -32,6 +32,7 @@ import {
   projectTreeSchema,
   testCaseListResponseSchema,
   testCaseSchema,
+  type User,
 } from "@/lib/contracts";
 import { pool } from "@/lib/db";
 
@@ -45,9 +46,11 @@ import {
 } from "./test-helpers";
 
 const projectIds: number[] = [];
+let admin: User;
 
 beforeAll(async () => {
-  await authenticateAsTestAdmin();
+  const session = await authenticateAsTestAdmin();
+  admin = session.user;
 });
 
 afterEach(async () => {
@@ -175,7 +178,10 @@ describe("M5-1 boundary content", () => {
     );
 
     try {
-      await createTestCaseService({ projectId: project.id, title: "   " });
+      await createTestCaseService(
+        { projectId: project.id, title: "   " },
+        admin,
+      );
       expect.fail("CHECK should reject a whitespace-only title");
     } catch (error) {
       const response = toErrorResponse(error);

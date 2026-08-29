@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/schema";
 
 import { ApiError, notFound } from "./errors";
+import { recordMutationEvent, type EventActor } from "./history";
 import type { DbExecutor } from "./numbering";
 import { requireProject } from "./projects";
 import {
@@ -163,10 +164,12 @@ export async function listTrash(projectId: number, query: TrashListQuery) {
   );
 }
 
-export async function restoreTestCase(id: number) {
+export async function restoreTestCase(id: number, actor: EventActor) {
   const updated = await db.transaction(async (tx) => {
     const row = await requireTestCase(id, tx, true);
-    return restoreRow(tx, row);
+    const restored = await restoreRow(tx, row);
+    await recordMutationEvent(tx, restored, actor, "restored");
+    return restored;
   });
   return assembleTestCase(updated);
 }
@@ -184,6 +187,7 @@ export async function permanentlyDeleteTestCase(id: number) {
 
 export async function bulkTrash(
   body: BulkSelectionWithProject,
+  actor: EventActor,
 ): Promise<BulkCountResponse> {
   return db.transaction(async (tx) => {
     const ids = await resolveTargetIds(
@@ -207,13 +211,17 @@ export async function bulkTrash(
           isNull(testCases.deletedAt),
         ),
       )
-      .returning({ id: testCases.id });
+      .returning();
+    for (const row of updated) {
+      await recordMutationEvent(tx, row, actor, "trashed");
+    }
     return { count: updated.length };
   });
 }
 
 export async function bulkRestore(
   body: BulkSelectionWithProject,
+  actor: EventActor,
 ): Promise<BulkCountResponse> {
   return db.transaction(async (tx) => {
     const ids = await resolveTargetIds(
@@ -237,6 +245,7 @@ export async function bulkRestore(
       const wasTrashed = row.deletedAt !== null;
       const updated = await restoreRow(tx, row, { skipIfActive });
       if (wasTrashed && updated.deletedAt === null) {
+        await recordMutationEvent(tx, updated, actor, "restored");
         count += 1;
       }
     }

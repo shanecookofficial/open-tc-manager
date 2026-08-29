@@ -2,14 +2,17 @@ import type {
   Directory as DirectoryRow,
   Project as ProjectRow,
   TestCase as TestCaseRow,
+  TestCaseEvent as TestCaseEventRow,
   TestStep as TestStepRow,
   User as UserRow,
 } from "@/lib/db/schema";
 import type {
+  CaseEventAction,
   Directory,
   DirectoryPathSegment,
   Project,
   TestCase,
+  TestCaseEvent,
   TestCaseSummary,
   TestStep,
   User,
@@ -90,6 +93,20 @@ export function serializeUser(row: UserRow): User {
     deactivatedAt: row.deactivatedAt ? toIso(row.deactivatedAt) : null,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
+  };
+}
+
+export function serializeTestCaseEvent(row: TestCaseEventRow): TestCaseEvent {
+  return {
+    id: row.id,
+    testCaseId: row.testCaseId,
+    actorId: row.actorId,
+    actorEmail: row.actorEmail,
+    actorDisplayName: row.actorDisplayName,
+    action: row.action as CaseEventAction,
+    revertedEventId: row.revertedEventId,
+    snapshot: row.snapshot,
+    createdAt: toIso(row.createdAt),
   };
 }
 

@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { directories, testCases } from "@/lib/db/schema";
 
 import { ApiError, notFound } from "./errors";
+import { recordMutationEvent, type EventActor } from "./history";
 import type { DbExecutor } from "./numbering";
 import { isUniqueViolation } from "./pg-errors";
 import { requireProject } from "./projects";
@@ -229,6 +230,7 @@ async function countActiveInSubtree(
 export async function deleteDirectory(
   id: number,
   mode: DirectoryDeleteMode | undefined,
+  actor: EventActor,
 ): Promise<DirectoryDeleteResponse> {
   return db.transaction(async (tx) => {
     const peeked = await requireDirectory(id, tx);
@@ -286,6 +288,16 @@ export async function deleteDirectory(
         .returning({ id: testCases.id });
 
       await tx.delete(directories).where(eq(directories.id, id));
+      for (const { id: caseId } of trashed) {
+        const [row] = await tx
+          .select()
+          .from(testCases)
+          .where(eq(testCases.id, caseId))
+          .limit(1);
+        if (row) {
+          await recordMutationEvent(tx, row, actor, "trashed");
+        }
+      }
       return emptyResponse({
         trashedCaseCount: trashed.length,
         movedCaseCount: 0,
@@ -324,9 +336,12 @@ export async function deleteDirectory(
       .update(testCases)
       .set({ directoryId: destinationParentId, updatedAt: now })
       .where(and(eq(testCases.directoryId, id), isNull(testCases.deletedAt)))
-      .returning({ id: testCases.id });
+      .returning();
 
     await tx.delete(directories).where(eq(directories.id, id));
+    for (const row of movedCases) {
+      await recordMutationEvent(tx, row, actor, "moved");
+    }
     return emptyResponse({
       trashedCaseCount: 0,
       movedCaseCount: movedCases.length,

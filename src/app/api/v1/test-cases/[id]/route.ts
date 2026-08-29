@@ -1,5 +1,6 @@
 import { putTestCaseBodySchema, testCaseIdParamSchema } from "@/lib/contracts";
 import { apiHandler } from "@/lib/api/handler";
+import { requireActor } from "@/lib/api/history";
 import { json } from "@/lib/api/http";
 import {
   getTestCaseById,
@@ -14,12 +15,14 @@ export const GET = apiHandler(
 
 export const PUT = apiHandler(
   { params: testCaseIdParamSchema, body: putTestCaseBodySchema },
-  async ({ params, body }) => json(await updateTestCase(params.id, body)),
+  async ({ params, body, user }) =>
+    json(await updateTestCase(params.id, body, requireActor(user))),
   { auth: "member" },
 );
 
 export const DELETE = apiHandler(
   { params: testCaseIdParamSchema },
-  async ({ params }) => json(await softDeleteTestCase(params.id)),
+  async ({ params, user }) =>
+    json(await softDeleteTestCase(params.id, requireActor(user))),
   { auth: "member" },
 );

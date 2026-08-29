@@ -354,3 +354,17 @@ Choices worth not rediscovering:
 - Role checks at the wrapper mean a Viewer write to an unknown id is 403
   rather than 404. Collection POSTs and the A2-2 accept tests do not depend
   on that nuance. A3 can thread `ctx.user` for event actor fields.
+
+---
+
+**2026-08-29 — v1.1 history event writes (A3-1).** Every successful case
+mutation inserts one `test_case_events` row in the **same transaction**:
+create → `created`, PUT → `updated`, PATCH move → `moved`, soft-delete →
+`trashed`, restore → `restored`, plus one row per case in bulk
+trash/restore. Snapshot is `{ title, description, directoryId, steps[{
+action, expectedResult }], deletedAt }` taken after the mutation.
+`actor_id` plus denormalized `actor_email` / `actor_display_name` come
+from `ctx.user` (`requireActor`). Directory `trash_contents` /
+`move_contents_to_parent` also write per-case events (they are trash/move
+of cases). A rolled-back mutation writes nothing. Seeded cases still
+start with zero events.
