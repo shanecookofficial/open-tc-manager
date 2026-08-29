@@ -177,15 +177,13 @@ export function TrashView({ project }: TrashViewProps) {
     setSelectedScope(null);
   };
 
-  const handleRestore = async (id: number, displayNumber: string, dirId: number | null) => {
+  const handleRestore = async (id: number, displayNumber: string) => {
     try {
       const restored = await restoreTestCase(id);
       const message =
-        restored.directoryId === null && dirId === null
+        restored.directoryId === null
           ? `${displayNumber} restored to project root`
-          : restored.directoryId === null
-            ? `${displayNumber} restored to project root (original folder no longer exists)`
-            : `${displayNumber} restored`;
+          : `${displayNumber} restored`;
       toast.success(message);
       handleMutated();
     } catch (error) {
@@ -214,6 +212,8 @@ export function TrashView({ project }: TrashViewProps) {
     } catch (error) {
       if (error instanceof ApiClientError) toast.error(error.message);
       else toast.error("Bulk restore failed");
+      handleMutated();
+      exitSelectionMode();
     }
   };
 
@@ -441,11 +441,7 @@ export function TrashView({ project }: TrashViewProps) {
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            handleRestore(
-                              testCase.id,
-                              testCase.displayNumber,
-                              testCase.directoryId,
-                            )
+                            handleRestore(testCase.id, testCase.displayNumber)
                           }
                         >
                           Restore

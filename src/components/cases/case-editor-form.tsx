@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAsyncData } from "@/hooks/use-async-data";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import {
   ApiClientError,
   createTestCase,
@@ -49,6 +50,7 @@ import {
 import {
   createTestCaseBodySchema,
   putTestCaseBodySchema,
+  TITLE_MAX,
   type Project,
   type TestCase,
 } from "@/lib/contracts";
@@ -84,7 +86,7 @@ const editorStepSchema = z.object({
 });
 
 const editorFormSchema = z.object({
-  title: z.string().trim().min(1, "Title is required"),
+  title: z.string().trim().min(1, "Title is required").max(TITLE_MAX),
   description: z.string().optional(),
   steps: z.array(editorStepSchema).min(1, "Add at least one step"),
 });
@@ -105,6 +107,7 @@ function SortableStepRow({
   onRemove,
   onMoveUp,
   onMoveDown,
+  compactEditors,
 }: {
   row: StepRowState;
   index: number;
@@ -114,6 +117,7 @@ function SortableStepRow({
   onRemove: (key: string) => void;
   onMoveUp: (key: string) => void;
   onMoveDown: (key: string) => void;
+  compactEditors: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: row.key });
@@ -184,8 +188,9 @@ function SortableStepRow({
           label="Action"
           value={row.action}
           onChange={(value) => onChange(row.key, { action: value })}
-          rows={3}
+          rows={compactEditors ? 2 : 3}
           error={actionError}
+          compact={compactEditors}
         />
         <MarkdownEditor
           label="Expected result (optional)"
@@ -193,6 +198,7 @@ function SortableStepRow({
           onChange={(value) => onChange(row.key, { expectedResult: value })}
           rows={2}
           error={expectedError}
+          compact={compactEditors}
         />
       </div>
     </div>
@@ -223,6 +229,11 @@ export function CaseEditorForm({
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const compactEditors = steps.length > 40;
+
+  useUnsavedChangesGuard(isDirty);
 
   const { data: tree } = useAsyncData(
     () => getProjectTree(project.id),
@@ -237,12 +248,14 @@ export function CaseEditorForm({
   );
 
   const updateStep = (key: string, patch: Partial<StepRowState>) => {
+    setIsDirty(true);
     setSteps((prev) =>
       prev.map((row) => (row.key === key ? { ...row, ...patch } : row)),
     );
   };
 
   const insertStepAfter = (index: number) => {
+    setIsDirty(true);
     setSteps((prev) => {
       const next = [...prev];
       next.splice(index + 1, 0, newStepRow());
@@ -251,10 +264,12 @@ export function CaseEditorForm({
   };
 
   const removeStep = (key: string) => {
+    setIsDirty(true);
     setSteps((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
   };
 
   const moveStep = (key: string, direction: -1 | 1) => {
+    setIsDirty(true);
     setSteps((prev) => {
       const index = prev.findIndex((row) => row.key === key);
       const target = index + direction;
@@ -266,6 +281,7 @@ export function CaseEditorForm({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    setIsDirty(true);
     setSteps((prev) => {
       const oldIndex = prev.findIndex((row) => row.key === active.id);
       const newIndex = prev.findIndex((row) => row.key === over.id);
@@ -326,6 +342,7 @@ export function CaseEditorForm({
           steps: stepPayload,
         });
         const created = await createTestCase(body);
+        setIsDirty(false);
         toast.success(`Created ${created.displayNumber}`);
         router.push(`/cases/${created.displayNumber}`);
         return;
@@ -340,6 +357,7 @@ export function CaseEditorForm({
         steps: stepPayload,
       });
       const updated = await updateTestCase(testCase.id, body);
+      setIsDirty(false);
       toast.success(`Saved ${updated.displayNumber}`);
       router.push(`/cases/${updated.displayNumber}`);
     } catch (error) {
@@ -384,7 +402,11 @@ export function CaseEditorForm({
         <Input
           id={`${formId}-title`}
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          maxLength={TITLE_MAX}
+          onChange={(event) => {
+            setTitle(event.target.value);
+            setIsDirty(true);
+          }}
           aria-invalid={fieldErrors.title ? true : undefined}
         />
         {fieldErrors.title ? (
@@ -400,8 +422,12 @@ export function CaseEditorForm({
               directories={tree.directories}
               allCount={tree.activeCaseCount}
               selection={directorySelection}
-              onSelect={setDirectorySelection}
+              onSelect={(next) => {
+                setDirectorySelection(next);
+                setIsDirty(true);
+              }}
               placementMode
+              defaultCollapseDepth={2}
             />
           </div>
         ) : (
@@ -412,7 +438,10 @@ export function CaseEditorForm({
       <MarkdownEditor
         label="Description (optional)"
         value={description}
-        onChange={setDescription}
+        onChange={(value) => {
+          setDescription(value);
+          setIsDirty(true);
+        }}
         rows={5}
         error={fieldErrors.description}
       />
@@ -424,7 +453,10 @@ export function CaseEditorForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setSteps((prev) => [...prev, newStepRow()])}
+            onClick={() => {
+              setIsDirty(true);
+              setSteps((prev) => [...prev, newStepRow()]);
+            }}
           >
             <PlusIcon />
             Add step
@@ -452,6 +484,7 @@ export function CaseEditorForm({
                     onRemove={removeStep}
                     onMoveUp={(key) => moveStep(key, -1)}
                     onMoveDown={(key) => moveStep(key, 1)}
+                    compactEditors={compactEditors}
                   />
                   <Button
                     type="button"

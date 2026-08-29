@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatShortDate } from "@/lib/format-date";
+import { truncateTitle } from "@/lib/format-title";
 import type { TestCaseSummary } from "@/lib/contracts";
 
 type CaseListProps = {
@@ -99,7 +100,9 @@ export function CaseList({
                 {testCase.displayNumber}
               </Link>
             </TableCell>
-            <TableCell className="max-w-md truncate">{testCase.title}</TableCell>
+            <TableCell className="max-w-md truncate" title={testCase.title}>
+              {truncateTitle(testCase.title)}
+            </TableCell>
             <TableCell className="text-right tabular-nums">
               {testCase.stepCount}
             </TableCell>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiClientError } from "@/lib/api-client";
 
@@ -19,13 +19,14 @@ export function useAsyncData<T>(
   const [error, setError] = useState<ApiClientError | Error | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [reloadToken, setReloadToken] = useState(0);
+  const requestSeqRef = useRef(0);
 
   const refetch = useCallback(() => {
     setReloadToken((token) => token + 1);
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    const seq = ++requestSeqRef.current;
 
     const run = async () => {
       if (data === undefined) {
@@ -35,15 +36,15 @@ export function useAsyncData<T>(
 
       try {
         const result = await fetcher();
-        if (!cancelled) {
+        if (seq === requestSeqRef.current) {
           setData(result);
         }
       } catch (err) {
-        if (!cancelled) {
+        if (seq === requestSeqRef.current) {
           setError(err instanceof Error ? err : new Error(String(err)));
         }
       } finally {
-        if (!cancelled) {
+        if (seq === requestSeqRef.current) {
           setIsLoading(false);
         }
       }
@@ -52,7 +53,7 @@ export function useAsyncData<T>(
     void run();
 
     return () => {
-      cancelled = true;
+      requestSeqRef.current += 1;
     };
     // fetcher intentionally omitted; callers pass stable deps only
     // eslint-disable-next-line react-hooks/exhaustive-deps

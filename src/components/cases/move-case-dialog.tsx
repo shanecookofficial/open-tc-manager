@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ApiClientError, getProjectTree, moveTestCase } from "@/lib/api-client";
+import { truncateTitle } from "@/lib/format-title";
 import type { Project, TestCase } from "@/lib/contracts";
 
 type MoveCaseDialogProps = {
@@ -72,18 +73,28 @@ export function MoveCaseDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Move test case</DialogTitle>
-          <DialogDescription>
-            Choose a destination folder for {testCase.displayNumber}.
+          <DialogDescription className="break-words">
+            Choose a destination folder for {testCase.displayNumber}
+            {testCase.title ? (
+              <>
+                {" "}
+                (<span title={testCase.title}>{truncateTitle(testCase.title, 60)}</span>
+                ).
+              </>
+            ) : (
+              "."
+            )}
           </DialogDescription>
         </DialogHeader>
         {tree ? (
-          <div className="max-h-64 overflow-y-auto rounded-md border p-2">
+          <div className="max-h-64 overflow-y-auto overflow-x-auto rounded-md border p-2">
             <DirectoryTree
               directories={tree.directories}
               allCount={tree.activeCaseCount}
               selection={selection}
               onSelect={setSelection}
               placementMode
+              defaultCollapseDepth={2}
             />
           </div>
         ) : (

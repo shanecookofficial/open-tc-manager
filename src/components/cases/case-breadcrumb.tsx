@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import type { DirectoryPathSegment } from "@/lib/contracts";
 import type { Project } from "@/lib/contracts";
+import { truncateTitle } from "@/lib/format-title";
 
 type CaseBreadcrumbProps = {
   project: Project;
@@ -28,9 +29,10 @@ export function CaseBreadcrumb({ project, directoryPath }: CaseBreadcrumbProps) 
             <ChevronRightIcon className="size-3.5 shrink-0" aria-hidden />
             <Link
               href={`/p/${project.prefix}?dir=${segment.id}`}
-              className="hover:text-foreground hover:underline"
+              className="max-w-[12rem] truncate hover:text-foreground hover:underline"
+              title={segment.name}
             >
-              {segment.name}
+              {truncateTitle(segment.name, 40)}
             </Link>
           </li>
         ))}

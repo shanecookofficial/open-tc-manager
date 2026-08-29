@@ -227,3 +227,16 @@ layer and the fixes / explicit deferrals:
 - **`next_case_number` integer overflow (v1.1).** Counters are PostgreSQL
   `integer` (max 2_147_483_647). Overflow is not a v1 scenario; high
   values below the cap work. No bigint migration in v1.
+
+---
+
+**2026-08-29 — Unsaved editor changes (M5-1, Composer).** v1 uses the browser
+`beforeunload` prompt when the case editor form is dirty. There is no in-app
+Next.js router guard (would need a shared dirty-state context). Successful
+save clears dirty state before navigation; refresh mid-edit does not auto-save
+and does not crash.
+
+**2026-08-29 — Restore toast copy (M5-1, Composer).** Trash rows only expose
+`directoryId` (null after folder delete). The UI now says "restored to project
+root" whenever `restored.directoryId === null`; the "original folder no longer
+exists" phrase is deferred to v1.1 per the API-owner note above.

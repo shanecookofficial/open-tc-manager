@@ -227,6 +227,8 @@ export function RepositoryView({ project }: RepositoryViewProps) {
       } else {
         toast.error("Bulk trash failed");
       }
+      handleMutated();
+      exitSelectionMode();
     } finally {
       setIsTrashing(false);
       setConfirmTrashOpen(false);

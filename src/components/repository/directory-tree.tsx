@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { TreeNode } from "@/lib/contracts";
+import { collectCollapsedFromDepth, treeIndentPx } from "@/lib/tree-collapse";
 import { filterExcludedNodes } from "@/lib/tree-utils";
 
 export type DirectorySelection =
@@ -45,6 +46,8 @@ type DirectoryTreeProps = {
   rootLabel?: string;
   /** Per-folder counts come from the tree's activeCaseCount. Hide them when those numbers would mislead (trash view). */
   showNodeCounts?: boolean;
+  /** Collapse folders at this depth and deeper on first render (keeps deep trees usable). */
+  defaultCollapseDepth?: number;
 };
 
 function TreeNodeRow({
@@ -82,7 +85,7 @@ function TreeNodeRow({
           "group flex items-center gap-0.5 rounded-md hover:bg-accent",
           selected && "bg-accent",
         )}
-        style={{ paddingLeft: `${depth * 12 + 4}px` }}
+        style={{ paddingLeft: `${treeIndentPx(depth)}px` }}
       >
         <button
           type="button"
@@ -195,9 +198,14 @@ export function DirectoryTree({
   excludeIds,
   rootLabel,
   showNodeCounts = true,
+  defaultCollapseDepth,
 }: DirectoryTreeProps) {
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const visibleDirectories = filterExcludedNodes(directories, excludeIds);
+  const [collapsed, setCollapsed] = useState<Set<number>>(() =>
+    defaultCollapseDepth !== undefined
+      ? collectCollapsedFromDepth(visibleDirectories, defaultCollapseDepth)
+      : new Set(),
+  );
 
   const toggleCollapsed = useCallback((id: number) => {
     setCollapsed((prev) => {
@@ -227,7 +235,7 @@ export function DirectoryTree({
     : selection.type === "all";
 
   return (
-    <nav aria-label="Directory tree" className="space-y-1">
+    <nav aria-label="Directory tree" className="min-w-0 space-y-1 overflow-x-auto">
       <div
         className={cn(
           "group flex items-center gap-0.5 rounded-md hover:bg-accent",
@@ -322,7 +330,7 @@ export function DirectorySidebar({
 }: DirectorySidebarProps) {
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r bg-muted/20">
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3">
         <DirectoryTree
           directories={directories}
           allCount={allCount}
@@ -330,6 +338,7 @@ export function DirectorySidebar({
           onSelect={onSelect}
           manageMode={manageMode}
           onManageAction={onManageAction}
+          defaultCollapseDepth={2}
         />
       </div>
       <div className="border-t p-3">

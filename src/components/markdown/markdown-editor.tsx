@@ -16,6 +16,8 @@ type MarkdownEditorProps = {
   error?: string;
   disabled?: boolean;
   className?: string;
+  /** Plain textarea only — skips preview tabs (used when many steps are on screen). */
+  compact?: boolean;
 };
 
 export function MarkdownEditor({
@@ -28,11 +30,17 @@ export function MarkdownEditor({
   error,
   disabled = false,
   className,
+  compact = false,
 }: MarkdownEditorProps) {
   const generatedId = useId();
   const id = idProp ?? generatedId;
   const errorId = `${id}-error`;
   const [tab, setTab] = useState<"write" | "preview">("write");
+
+  const textareaClassName = cn(
+    "flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+    error && "border-destructive ring-destructive/20",
+  );
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -40,47 +48,49 @@ export function MarkdownEditor({
         <label id={`${id}-label`} htmlFor={id} className="text-sm font-medium">
           {label}
         </label>
-        <div
-          role="tablist"
-          aria-label={`${label} mode`}
-          className="inline-flex rounded-md border bg-muted p-0.5"
-        >
-          <button
-            type="button"
-            role="tab"
-            id={`${id}-write-tab`}
-            aria-selected={tab === "write"}
-            aria-controls={`${id}-write-panel`}
-            className={cn(
-              "rounded-sm px-2.5 py-1 text-xs font-medium transition-colors",
-              tab === "write"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => setTab("write")}
+        {!compact ? (
+          <div
+            role="tablist"
+            aria-label={`${label} mode`}
+            className="inline-flex rounded-md border bg-muted p-0.5"
           >
-            Write
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id={`${id}-preview-tab`}
-            aria-selected={tab === "preview"}
-            aria-controls={`${id}-preview-panel`}
-            className={cn(
-              "rounded-sm px-2.5 py-1 text-xs font-medium transition-colors",
-              tab === "preview"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => setTab("preview")}
-          >
-            Preview
-          </button>
-        </div>
+            <button
+              type="button"
+              role="tab"
+              id={`${id}-write-tab`}
+              aria-selected={tab === "write"}
+              aria-controls={`${id}-write-panel`}
+              className={cn(
+                "rounded-sm px-2.5 py-1 text-xs font-medium transition-colors",
+                tab === "write"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setTab("write")}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id={`${id}-preview-tab`}
+              aria-selected={tab === "preview"}
+              aria-controls={`${id}-preview-panel`}
+              className={cn(
+                "rounded-sm px-2.5 py-1 text-xs font-medium transition-colors",
+                tab === "preview"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setTab("preview")}
+            >
+              Preview
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {tab === "write" ? (
+      {compact ? (
         <textarea
           id={id}
           aria-labelledby={`${id}-label`}
@@ -91,25 +101,44 @@ export function MarkdownEditor({
           disabled={disabled}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className={cn(
-            "flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-destructive ring-destructive/20",
-          )}
+          className={textareaClassName}
         />
       ) : (
-        <div
-          id={`${id}-preview-panel`}
-          role="tabpanel"
-          aria-labelledby={`${id}-preview-tab`}
-          className="min-h-[calc(var(--rows,6)*1.5rem+1rem)] rounded-md border border-input bg-background px-3 py-2"
-          style={{ "--rows": rows } as React.CSSProperties}
-        >
-          {value.trim() ? (
-            <Markdown>{value}</Markdown>
-          ) : (
-            <p className="text-sm text-muted-foreground">Nothing to preview yet.</p>
-          )}
-        </div>
+        <>
+          <div
+            id={`${id}-write-panel`}
+            role="tabpanel"
+            aria-labelledby={`${id}-write-tab`}
+            hidden={tab !== "write"}
+          >
+            <textarea
+              id={id}
+              aria-labelledby={`${id}-label`}
+              rows={rows}
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder={placeholder}
+              disabled={disabled}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
+              className={textareaClassName}
+            />
+          </div>
+          <div
+            id={`${id}-preview-panel`}
+            role="tabpanel"
+            aria-labelledby={`${id}-preview-tab`}
+            hidden={tab !== "preview"}
+            className="min-h-[calc(var(--rows,6)*1.5rem+1rem)] rounded-md border border-input bg-background px-3 py-2"
+            style={{ "--rows": rows } as React.CSSProperties}
+          >
+            {value.trim() ? (
+              <Markdown>{value}</Markdown>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nothing to preview yet.</p>
+            )}
+          </div>
+        </>
       )}
 
       {error ? (

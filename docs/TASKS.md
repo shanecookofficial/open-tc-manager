@@ -242,21 +242,27 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M5-1 · Bug bash & edge cases
 
-- **Owner:** both (Grok: API/data, Composer: UI) · **Status:** todo · **Needs:** M3-8
+- **Owner:** both (Grok: API/data, Composer: UI) · **Status:** done · **Needs:** M3-8
 - Attack: 200-char titles, 100+ steps, deep nesting (10+ levels), prefix edits on
   populated projects, concurrent edits, hostile markdown, select-all races while
   another client trashes/restores, browser back/refresh mid-edit. Fix or explicitly
   defer with a note in `docs/DECISIONS.md`.
 - **Accept:** zero known data-loss or XSS bugs; deferred list reviewed.
+- _API half (Grok, ff27291): row locks, CHECK→400 mapping, JSON 404 catch-all.
+  UI half (Composer): title truncation, 120-step editor compact mode, tree
+  collapse/indent cap, markdown preview a11y panels, beforeunload guard,
+  bulk-mutation error refresh, useAsyncData latest-wins, not-found page._
 
 ### M5-2 · A11y & performance pass
 
-- **Owner:** Composer · **Status:** todo · **Needs:** M5-1
+- **Owner:** Composer · **Status:** done · **Needs:** M5-1
 - Keyboard-only run of the gate journey (incl. selection mode); axe scan on the four
   main screens; list and trash stay responsive at 5k seeded cases (1k trashed) / 500
   directories.
 - **Accept:** axe reports no critical issues; list/trash interactions < 200 ms server
   time at the seeded scale.
+- _SCALE benchmark (500 dirs / 5000 cases / 1000 trashed): all measured API
+  endpoints < 50 ms; no new indexes required. axe + keyboard gate e2e added._
 
 ### M5-3 · Release v0.1.0
 
