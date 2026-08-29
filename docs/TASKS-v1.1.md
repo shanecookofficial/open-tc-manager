@@ -118,7 +118,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A5-2 · Adversarial docs + e2e gate
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** A4-3, A5-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** A4-3, A5-1
 - Walk SETUP bootstrap+login; full e2e: bootstrap/login → create case → edit →
   revert → A→B→C→A assertion. Bug-bash: last-Admin, deactivated login, CSRF not
   in scope (SameSite cookie). Flip any leftover A* tasks if already done.

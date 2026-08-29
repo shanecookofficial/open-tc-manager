@@ -66,20 +66,25 @@ test.describe("Case history and revert", () => {
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Version C");
 
-    const historySection = page.locator("section", {
-      has: page.getByText(/^History \(\d+\)/),
-    });
+    const historySection = page.getByRole("region", { name: /History/ });
+    await expect(
+      historySection.getByRole("heading", { name: "History (3)" }),
+    ).toBeVisible();
     await expect(historySection.getByText("Created")).toBeVisible();
     await expect(historySection.getByText("Updated")).toHaveCount(2);
 
-    const firstRevertButton = historySection
-      .getByRole("button", { name: "Revert" })
-      .first();
-    await firstRevertButton.click();
-    await page.getByRole("button", { name: "Revert" }).last().click();
+    await historySection.getByRole("button", { name: "Revert" }).first().click();
+    const confirm = page.getByRole("alertdialog");
+    await expect(
+      confirm.getByRole("heading", { name: "Revert to this version?" }),
+    ).toBeVisible();
+    await confirm.getByRole("button", { name: "Revert" }).click();
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Version A");
+    await expect(
+      historySection.getByRole("heading", { name: "History (4)" }),
+    ).toBeVisible();
     await expect(historySection.getByText("Reverted")).toBeVisible();
-    await expect(historySection.locator("li")).toHaveCount(4);
+    await expect(historySection.locator("ol > li")).toHaveCount(4);
   });
 });

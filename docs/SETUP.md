@@ -37,8 +37,8 @@ Edit `.env` if you want non-default credentials or demo data on first boot:
 | `APP_PORT`          | `3000`                                     | Host port mapped to the app container                                 |
 | `OPENTCM_IMAGE`     | `ghcr.io/shanecookofficial/opentcm:latest` | Image reference (used when not building locally)                      |
 | `SEED_DEMO_DATA`    | `false`                                    | Set to `true` on **first boot only** to load the WEB/API demo dataset |
-| `BOOTSTRAP_ADMIN_EMAIL` | unset (optional)                         | First Admin email when `users` is empty (see §8)                      |
-| `BOOTSTRAP_ADMIN_PASSWORD` | unset (optional)                      | First Admin password (unset after first boot in production)           |
+| `BOOTSTRAP_ADMIN_EMAIL` | unset (optional)                         | First Admin email when `users` is empty (see [Part C](#part-c--first-admin-sign-in-and-users-v11)) |
+| `BOOTSTRAP_ADMIN_PASSWORD` | unset (optional)                      | First Admin password, 8–256 characters (unset after first boot in production) |
 | `HTTPS`             | `false`                                    | Set `true` when served over HTTPS (Secure session cookie)             |
 
 `docker-compose.prod.yml` reads these variables from `.env` in the project directory
@@ -69,8 +69,15 @@ docker compose -f docker-compose.prod.yml up -d
 
 Open **http://localhost:3000** (or `http://localhost:<APP_PORT>` if you changed it).
 
-You will be redirected to **Sign in**. Use the bootstrap Admin from §8, a user
-created by `npm run db:seed`, or an account your Admin provisioned.
+You will be redirected to **Sign in** (unauthenticated HTML routes return
+**HTTP 307** to `/login`, not 200 or 404). Sign in with the bootstrap Admin
+from [Part C](#part-c--first-admin-sign-in-and-users-v11), a demo user from
+`SEED_DEMO_DATA` / `npm run db:seed` (passwords in
+[`DEVELOPMENT.md`](DEVELOPMENT.md)), or an account your Admin provisioned.
+
+If `users` is empty and you did **not** set `BOOTSTRAP_ADMIN_*`, nobody can
+sign in until you set those variables and recreate the app container, or seed
+demo users.
 
 If you did **not** seed demo data, after sign-in the home URL shows **Create your
 first project** (Admins only). If you seeded, it redirects into the first project.
@@ -118,15 +125,22 @@ curl -s http://localhost:3000/api/v1/health
 
 Expected: `{"status":"ok","database":"connected"}`
 
-If you seeded:
+`GET /api/v1/health` is public. Every other `/api/v1` route and every HTML page
+requires a session. Unauthenticated checks:
 
 ```bash
 curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3000/p/WEB
-# HTTP 200
+# HTTP 307  (redirect to /login?next=%2Fp%2FWEB)
+
+curl -s http://localhost:3000/api/v1/projects
+# {"error":{"code":"UNAUTHENTICATED","message":"Sign in to continue."}}
 ```
 
-If you skipped seed, `/p/WEB` is **HTTP 404**. Open http://localhost:3000 and use
-**Create your first project** instead.
+After you sign in (browser, or a cookie from `POST /api/v1/auth/login`), a
+seeded instance serves `/p/WEB` as **HTTP 200**. If you skipped seed, authed
+`/p/WEB` is **HTTP 404** — open `/` and use **Create your first project**.
+Authed `GET /api/v1/projects` then returns `{"items":[]}` when no projects
+exist.
 
 ### 5. Upgrade to a new release
 
@@ -324,9 +338,11 @@ Optional demo data (idempotent; safe to run twice):
 npm run db:seed
 ```
 
-If you skip seed, the UI shows **Create your first project** at
-http://localhost:3000 after you start the server. `/p/WEB` will 404 until you
-create a project with that prefix or run the seed.
+If you skip seed, you still need a first Admin ([Part C](#part-c--first-admin-sign-in-and-users-v11))
+before anyone can sign in. After sign-in the UI shows **Create your first
+project** at http://localhost:3000. Authed `/p/WEB` will 404 until you create a
+project with that prefix or run the seed. Unauthenticated `/p/WEB` is always
+**HTTP 307** to `/login`.
 
 Production build:
 
@@ -364,21 +380,40 @@ curl -s http://localhost:3000/api/v1/health
 # {"status":"ok","database":"connected"}
 ```
 
-If you ran `db:seed`:
+Unauthenticated HTML and API (v1.1):
 
 ```bash
 curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3000/p/WEB
+# HTTP 307
+
+curl -s http://localhost:3000/api/v1/projects
+# {"error":{"code":"UNAUTHENTICATED","message":"Sign in to continue."}}
+```
+
+Sign in via the browser, or obtain a session cookie:
+
+```bash
+curl -s -c cookies.txt -H 'content-type: application/json' \
+  -d '{"email":"<admin-email>","password":"<admin-password>"}' \
+  http://localhost:3000/api/v1/auth/login
+```
+
+If you ran `db:seed` (demo passwords in [`DEVELOPMENT.md`](DEVELOPMENT.md)):
+
+```bash
+curl -s -o /dev/null -w "HTTP %{http_code}\n" -b cookies.txt \
+  http://localhost:3000/p/WEB
 # HTTP 200
 ```
 
-If you skipped seed, that `/p/WEB` check returns **HTTP 404**. Confirm instead:
+If you skipped seed, authed `/p/WEB` is **HTTP 404**. Confirm instead:
 
 ```bash
-curl -s http://localhost:3000/api/v1/projects
+curl -s -b cookies.txt http://localhost:3000/api/v1/projects
 # {"items":[]}
 ```
 
-and that the browser shows **Create your first project**.
+and that the browser, after sign-in, shows **Create your first project**.
 
 ### 8. Upgrade (manual install)
 
@@ -430,45 +465,82 @@ that already has OpenTCM tables (`ERROR: schema "drizzle" already exists`).
 | Port 3000 in use                                     | Set `PORT=3001` (and `APP_PORT=3001` in Compose `.env`).                                                                                                                                  |
 | Docker app exits immediately                         | `docker compose -f docker-compose.prod.yml logs app` — usually migration failure or bad `DATABASE_URL`.                                                                                   |
 | Blank styles in standalone mode                      | Use `npm run start:standalone` (copies `.next/static`); do not run `server.js` without static assets.                                                                                     |
-| `/p/WEB` is 404                                      | Seed was skipped (or prefix is not `WEB`). Open `/` and create a project, or run `npm run db:seed`.                                                                                       |
+| `/p/WEB` is **307** to `/login`                      | Not signed in. HTML routes redirect; this is not a missing project. Sign in, then retry.                                                                                                  |
+| `/p/WEB` is **404** after sign-in                    | Seed was skipped (or prefix is not `WEB`). Open `/` and create a project, or run `npm run db:seed`.                                                                                       |
+| `/api/v1/projects` returns `UNAUTHENTICATED`         | Expected without a session. Sign in and retry with the `opentcm_session` cookie.                                                                                                          |
+| Sign in: “Email or password is incorrect” and empty instance | `users` is empty and `BOOTSTRAP_ADMIN_*` was not set (or not passed into the container). Set both vars (password 8+ chars) and restart, or run `npm run db:seed`.                         |
+| Docker: bootstrap vars in `.env` ignored             | `docker-compose.prod.yml` must forward `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` into the `app` service. Recreate the container after editing `.env`.                           |
 | `systemctl: System has not been booted with systemd` | Start Postgres without systemd; the packages can still be installed.                                                                                                                      |
 
 ---
 
 ## Part C — First Admin, sign-in, and users (v1.1)
 
-### Bootstrap Admin (empty database)
+OpenTCM has **no public registration**. You need at least one Admin before anyone
+can sign in. Pick **one** first-user strategy for a given database.
 
-When the `users` table is empty, OpenTCM can create one Admin from environment
-variables (also used by Docker / `start:standalone` on boot):
+### Strategy 1 — Bootstrap Admin (empty `users` table)
+
+When `users` is empty, the app creates one Admin from environment variables on
+process start (`instrumentation.ts`) and again at login if boot was skipped.
+Password must be **8–256** characters after trim (same rule as every password).
 
 ```
 BOOTSTRAP_ADMIN_EMAIL=ada@opentcm.local
 BOOTSTRAP_ADMIN_PASSWORD=change-me-in-production
 ```
 
-Bootstrap runs once — if **any** user already exists (seed, prior bootstrap, or
-manual insert), it is a no-op. You may unset `BOOTSTRAP_ADMIN_PASSWORD` after
-first boot; leaving it set does not create a duplicate Admin.
+Used by Docker Compose (the `app` service **forwards** these from `.env` — they
+are not baked into the image) and by `npm run start:standalone` (which loads
+`.env` from the repo root).
 
-### Demo users from seed (development / e2e)
+Bootstrap runs **once**. If **any** user already exists (seed, prior bootstrap,
+or a row you inserted), it is a no-op. Unset `BOOTSTRAP_ADMIN_PASSWORD` after
+first boot in production; leaving it set does not create a second bootstrap
+Admin.
 
-`npm run db:seed` (and `SEED_DEMO_DATA` in Docker) also provisions demo accounts
-when appropriate:
+If `users` is empty and both variables are **unset**, Sign in shows a hint to
+configure `BOOTSTRAP_ADMIN_*` or run `npm run db:seed`. Submitting the form
+returns **“Email or password is incorrect.”** — there is no account yet.
+
+### Strategy 2 — Demo users from seed (development / first look)
+
+`npm run db:seed` (and `SEED_DEMO_DATA=true` in Docker) inserts demo accounts
+when those **emails** are missing. Passwords are documented only in
+[`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 | When | Users created |
 | --- | --- |
-| `users` table empty | Admin, Member, Viewer (documented passwords in `DEVELOPMENT.md`) |
-| Demo emails missing | Each of `admin@`, `member@`, `viewer@` inserted when absent — never overwrites |
+| Demo email absent | That one of `admin@opentcm.local`, `member@opentcm.local`, `viewer@opentcm.local` is inserted |
+| Demo email already present | Row is left unchanged (never overwritten) |
+
+Seed does **not** skip just because `users` is non-empty. If you **bootstrap
+first** with a different email (e.g. `ada@opentcm.local`) and **then** seed, you
+get **two Admins** (`ada@` plus `admin@opentcm.local`) plus Member and Viewer.
+That is intentional. For a single-Admin production instance: bootstrap only, and
+leave `SEED_DEMO_DATA=false`.
+
+Docker first boot with `SEED_DEMO_DATA=true`: the entrypoint seeds **before**
+the Node server starts, so bootstrap sees a non-empty `users` table and is a
+no-op. Demo trio wins; `BOOTSTRAP_ADMIN_*` is unused.
+
+Playwright / `npm run test:e2e` seeds first, then sets `BOOTSTRAP_ADMIN_*` to
+the same `admin@opentcm.local` credentials as a fallback if seed did not run.
 
 ### Sign in
 
-1. Open `/login` (unauthenticated visits to any other page redirect here).
+1. Open `/login` (unauthenticated visits to any other HTML page **307** here,
+   with `next=` for the original path except `/`).
 2. Enter email and password.
 3. After success you land on the repository (or the `next=` path you requested).
 
+Bad password or unknown email: **“Email or password is incorrect.”**
+Deactivated account with the correct password: **“This account has been
+deactivated.”**
+
 Admins open **Users** in the header to create Member/Viewer accounts and manage
-roles. See [`USER_GUIDE.md`](USER_GUIDE.md) for roles and case history.
+roles. The last remaining Admin cannot be deactivated or demoted. See
+[`USER_GUIDE.md`](USER_GUIDE.md) for roles and case history.
 
 ---
 

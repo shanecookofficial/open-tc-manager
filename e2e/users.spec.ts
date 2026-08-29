@@ -35,6 +35,17 @@ test.describe("Users admin", () => {
     await row.getByRole("button", { name: "Deactivate" }).click();
     await page.getByRole("button", { name: "Deactivate" }).last().click();
     await expect(row.getByText("Deactivated")).toBeVisible();
+
+    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page).toHaveURL("/login");
+
+    await page.getByLabel("Email").fill(testMemberEmail);
+    await page.getByLabel("Password").fill("e2e-member-pass");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("alert")).toHaveText(
+      "This account has been deactivated.",
+    );
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("Member cannot open Users page", async ({ page, request }) => {
@@ -56,5 +67,75 @@ test.describe("Users admin", () => {
     await page.goto("/users");
     await expect(page.getByText("Forbidden")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Users" })).not.toBeVisible();
+  });
+
+  test("last remaining Admin cannot be deactivated or demoted", async ({
+    page,
+    request,
+  }) => {
+    const extraEmail = `e2e-last-admin-${Date.now()}@opentcm.local`;
+    const extraPassword = "spare-admin-pass";
+    const extraResponse = await request.post("/api/v1/users", {
+      data: {
+        email: extraEmail,
+        displayName: "E2E Last Admin",
+        role: "admin",
+        password: extraPassword,
+      },
+    });
+    expect(extraResponse.ok()).toBeTruthy();
+    const extra = (await extraResponse.json()) as { id: number };
+
+    const extraLogin = await request.post("/api/v1/auth/login", {
+      data: { email: extraEmail, password: extraPassword },
+    });
+    expect(extraLogin.ok()).toBeTruthy();
+
+    const listed = (await (await request.get("/api/v1/users")).json()) as {
+      items: {
+        id: number;
+        role: string;
+        deactivatedAt: string | null;
+      }[];
+    };
+    const others = listed.items.filter(
+      (item) =>
+        item.role === "admin" &&
+        item.deactivatedAt === null &&
+        item.id !== extra.id,
+    );
+    const deactivatedAt = new Date().toISOString();
+    for (const other of others) {
+      const patched = await request.patch(`/api/v1/users/${other.id}`, {
+        data: { deactivatedAt },
+      });
+      expect(patched.ok()).toBeTruthy();
+    }
+
+    try {
+      await loginViaPage(page, {
+        email: extraEmail,
+        password: extraPassword,
+      });
+      await page.goto("/users");
+      const row = page.getByRole("row", { name: new RegExp(extraEmail) });
+      await expect(row.getByRole("button", { name: "Deactivate" })).toBeDisabled();
+
+      await row.getByRole("button", { name: "Change role" }).click();
+      await page.getByLabel("Role").selectOption("member");
+      await expect(
+        page.getByText("Cannot deactivate or demote the last remaining Admin."),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Save role" }),
+      ).toBeDisabled();
+      await page.getByRole("button", { name: "Cancel" }).click();
+    } finally {
+      for (const other of others) {
+        await request.patch(`/api/v1/users/${other.id}`, {
+          data: { deactivatedAt: null, role: "admin" },
+        });
+      }
+    }
   });
 });

@@ -31,7 +31,8 @@ docker compose exec app npm run db:seed   # optional: WEB/API demo data
 
 - **App:** http://localhost:3000 — sign in with a seeded or bootstrap Admin, then
   land in the demo project or the "create your first project" screen (Admins).
-  OpenTCM requires authentication (closed/trusted networks).
+  OpenTCM requires authentication (closed/trusted networks). `BOOTSTRAP_ADMIN_*`
+  in `.env` is forwarded into the Compose `app` service.
 - **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
 
 The `app` service waits for Postgres to pass its healthcheck before starting.

@@ -68,12 +68,22 @@ test.describe("Directory management", () => {
     });
 
     await page.reload();
+    await expect(
+      page.locator("[data-tree-item]", { hasText: "Alpha" }),
+    ).toBeVisible();
+    await expect(
+      page.locator("[data-tree-item]", { hasText: "Beta" }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Actions for Beta" }).click();
     await page.getByRole("menuitem", { name: "Rename…" }).click();
-    await page.getByRole("textbox", { name: "Name" }).fill("Alpha");
-    await page.getByRole("button", { name: "Save" }).click();
+    const renameDialog = page.getByRole("dialog");
+    await expect(
+      renameDialog.getByRole("heading", { name: "Rename folder" }),
+    ).toBeVisible();
+    await renameDialog.getByRole("textbox", { name: "Name" }).fill("Alpha");
+    await renameDialog.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByText(/already exists|SIBLING/i)).toBeVisible();
+    await expect(renameDialog.getByText(/already exists/i)).toBeVisible();
   });
 
   test("non-empty delete modes update tree and trash count", async ({

@@ -37,6 +37,11 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      # Forwarded from `.env`. Empty values are a no-op (bootstrap only runs
+      # when both are non-empty and `users` is empty). See docs/SETUP.md Part C.
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      HTTPS: ${HTTPS:-false}
     depends_on:
       postgres:
         condition: service_healthy

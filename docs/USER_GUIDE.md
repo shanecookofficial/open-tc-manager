@@ -134,6 +134,9 @@ Permanent deletion cannot be undone.
 | Create / edit projects (prefix) | no | no | yes |
 | Users admin | no | no | yes |
 
+The last remaining Admin cannot be deactivated or demoted. Deactivated accounts
+cannot sign in until an Admin reactivates them.
+
 The UI hides actions your role cannot use; the API returns **403** if you call a
 forbidden endpoint directly.
 

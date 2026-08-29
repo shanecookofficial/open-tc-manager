@@ -59,6 +59,13 @@ export function UsersAdminView() {
     [],
   );
   const users = data ?? [];
+  const activeAdminCount = users.filter(
+    (user) => user.role === "admin" && user.deactivatedAt === null,
+  ).length;
+  const isLastRemainingAdmin = (user: User) =>
+    user.role === "admin" &&
+    user.deactivatedAt === null &&
+    activeAdminCount <= 1;
 
   const [dialog, setDialog] = useState<UserDialogState>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<User | null>(null);
@@ -117,6 +124,10 @@ export function UsersAdminView() {
 
   const handleChangeRole = async () => {
     if (dialog?.kind !== "role") return;
+    if (isLastRemainingAdmin(dialog.user) && editRole !== "admin") {
+      toast.error("Cannot deactivate or demote the last remaining Admin.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       await updateUser(dialog.user.id, { role: editRole });
@@ -238,7 +249,17 @@ export function UsersAdminView() {
                       variant="destructive"
                       size="sm"
                       onClick={() => setConfirmDeactivate(user)}
-                      disabled={user.id === currentUser?.id}
+                      disabled={
+                        user.id === currentUser?.id ||
+                        isLastRemainingAdmin(user)
+                      }
+                      title={
+                        isLastRemainingAdmin(user)
+                          ? "Cannot deactivate the last remaining Admin."
+                          : user.id === currentUser?.id
+                            ? "You cannot deactivate your own account."
+                            : undefined
+                      }
                     >
                       Deactivate
                     </Button>
@@ -368,12 +389,27 @@ export function UsersAdminView() {
                 <option key={role} value={role}>{roleLabel(role)}</option>
               ))}
             </select>
+            {dialog?.kind === "role" &&
+            isLastRemainingAdmin(dialog.user) &&
+            editRole !== "admin" ? (
+              <p role="alert" className="text-sm text-destructive">
+                Cannot deactivate or demote the last remaining Admin.
+              </p>
+            ) : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(null)}>
               Cancel
             </Button>
-            <Button onClick={handleChangeRole} disabled={isSubmitting}>
+            <Button
+              onClick={handleChangeRole}
+              disabled={
+                isSubmitting ||
+                (dialog?.kind === "role" &&
+                  isLastRemainingAdmin(dialog.user) &&
+                  editRole !== "admin")
+              }
+            >
               {isSubmitting ? "Saving…" : "Save role"}
             </Button>
           </DialogFooter>
