@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { cleanupE2EProjectByPrefix, uniquePrefix } from "./helpers";
+import { cleanupE2EProjectByPrefix, loginAsAdmin, loginViaPage, uniquePrefix } from "./helpers";
 
 async function createProject(page: import("@playwright/test").Page, prefix: string) {
   const name = `Dir E2E ${prefix}`;
@@ -19,6 +19,11 @@ async function openRootActions(page: import("@playwright/test").Page) {
 
 test.describe("Directory management", () => {
   let createdPrefix: string | undefined;
+
+  test.beforeEach(async ({ page, request }) => {
+    await loginAsAdmin(request);
+    await loginViaPage(page);
+  });
 
   test.afterEach(async ({ request }) => {
     await cleanupE2EProjectByPrefix(request, createdPrefix);

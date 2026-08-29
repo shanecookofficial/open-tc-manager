@@ -1,9 +1,19 @@
 import { expect, test } from "@playwright/test";
 
-import { cleanupE2EProjectByPrefix, uniquePrefix } from "./helpers";
+import {
+  cleanupE2EProjectByPrefix,
+  loginAsAdmin,
+  loginViaPage,
+  uniquePrefix,
+} from "./helpers";
 
 test.describe("Trash view", () => {
   let createdPrefix: string | undefined;
+
+  test.beforeEach(async ({ page, request }) => {
+    await loginAsAdmin(request);
+    await loginViaPage(page);
+  });
 
   test.afterEach(async ({ request }) => {
     await cleanupE2EProjectByPrefix(request, createdPrefix);

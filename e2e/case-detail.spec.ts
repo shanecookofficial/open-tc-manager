@@ -1,9 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-import { cleanupE2ECase } from "./helpers";
+import { cleanupE2ECase, loginAsAdmin, loginViaPage } from "./helpers";
 
 test.describe("Case detail view", () => {
   let createdCaseId: number | undefined;
+
+  test.beforeEach(async ({ page, request }) => {
+    await loginAsAdmin(request);
+    await loginViaPage(page);
+  });
 
   test.afterEach(async ({ request }) => {
     await cleanupE2ECase(request, createdCaseId);

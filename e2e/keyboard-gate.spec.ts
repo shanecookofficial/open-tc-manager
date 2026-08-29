@@ -1,9 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+import { loginViaPage } from "./helpers";
+
 /**
  * Keyboard-only gate journey (no mouse). Documents the tab/arrow path for a11y review.
  */
 test.describe("Keyboard gate journey", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginViaPage(page);
+  });
+
   test("navigates repository → case → editor → trash with keyboard", async ({
     page,
   }) => {

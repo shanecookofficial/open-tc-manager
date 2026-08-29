@@ -3,28 +3,42 @@ import {
   directoryDeleteResponseSchema,
   directorySchema,
   errorBodySchema,
+  loginBodySchema,
   projectListResponseSchema,
   projectSchema,
   projectTreeSchema,
+  revertTestCaseResponseSchema,
+  sessionUserResponseSchema,
+  testCaseEventListResponseSchema,
   testCaseListResponseSchema,
   testCaseSchema,
+  userListResponseSchema,
+  userSchema,
   type BulkFilter,
   type BulkSelectionWithProject,
+  type ChangePasswordBody,
   type CreateDirectoryBody,
   type CreateProjectBody,
   type CreateTestCaseBody,
+  type CreateUserBody,
   type Directory,
   type DirectoryDeleteMode,
   type DirectoryDeleteResponse,
+  type LoginBody,
   type MoveTestCaseBody,
   type PatchDirectoryBody,
   type PatchProjectBody,
+  type PatchUserBody,
   type Project,
   type ProjectListResponse,
   type ProjectTree,
   type PutTestCaseBody,
+  type RevertTestCaseBody,
   type TestCase,
+  type TestCaseEventListResponse,
   type TestCaseListResponse,
+  type User,
+  type UserListResponse,
 } from "@/lib/contracts";
 import type { ErrorCode } from "@/lib/contracts";
 import type { z } from "zod";
@@ -41,12 +55,29 @@ export class ApiClientError extends Error {
   }
 }
 
+function shouldRedirectOn401(url: string): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (url.includes("/auth/login")) {
+    return false;
+  }
+  return !window.location.pathname.startsWith("/login");
+}
+
 async function parseJson<T>(
   response: Response,
   schema: z.ZodType<T>,
+  requestUrl = "",
 ): Promise<T> {
   const body: unknown = await response.json();
   if (!response.ok) {
+    if (response.status === 401 && shouldRedirectOn401(requestUrl)) {
+      const next = encodeURIComponent(
+        window.location.pathname + window.location.search,
+      );
+      window.location.href = `/login?next=${next}`;
+    }
     const parsed = errorBodySchema.safeParse(body);
     if (parsed.success) {
       throw new ApiClientError(
@@ -66,13 +97,137 @@ async function parseJson<T>(
 
 const API_BASE = "/api/v1";
 
+async function apiFetch(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  return fetch(`${API_BASE}${path}`, {
+    ...init,
+    credentials: "include",
+  });
+}
+
+export async function login(body: LoginBody): Promise<User> {
+  loginBodySchema.parse(body);
+  const response = await apiFetch("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseJson(response, sessionUserResponseSchema, "/auth/login");
+  return data.user;
+}
+
+export async function logout(): Promise<void> {
+  const response = await apiFetch("/auth/logout", { method: "POST" });
+  if (!response.ok && response.status !== 204) {
+    const body: unknown = await response.json();
+    const parsed = errorBodySchema.safeParse(body);
+    if (parsed.success) {
+      throw new ApiClientError(
+        parsed.data.error.code,
+        parsed.data.error.message,
+        response.status,
+      );
+    }
+    throw new ApiClientError(
+      "INTERNAL_ERROR",
+      "Unexpected server response",
+      response.status,
+    );
+  }
+}
+
+export async function getMe(): Promise<User> {
+  const response = await apiFetch("/auth/me");
+  const data = await parseJson(response, sessionUserResponseSchema, "/auth/me");
+  return data.user;
+}
+
+export async function changePassword(body: ChangePasswordBody): Promise<void> {
+  const response = await apiFetch("/auth/password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok && response.status !== 204) {
+    const bodyText: unknown = await response.json();
+    const parsed = errorBodySchema.safeParse(bodyText);
+    if (parsed.success) {
+      throw new ApiClientError(
+        parsed.data.error.code,
+        parsed.data.error.message,
+        response.status,
+      );
+    }
+    throw new ApiClientError(
+      "INTERNAL_ERROR",
+      "Unexpected server response",
+      response.status,
+    );
+  }
+}
+
+export async function listUsers(): Promise<UserListResponse> {
+  const response = await apiFetch("/users");
+  return parseJson(response, userListResponseSchema, "/users");
+}
+
+export async function createUser(body: CreateUserBody): Promise<User> {
+  const response = await apiFetch("/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, userSchema, "/users");
+}
+
+export async function updateUser(
+  id: number,
+  body: PatchUserBody,
+): Promise<User> {
+  const response = await apiFetch(`/users/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, userSchema, `/users/${id}`);
+}
+
+export async function listCaseEvents(
+  testCaseId: number,
+): Promise<TestCaseEventListResponse> {
+  const response = await apiFetch(`/test-cases/${testCaseId}/events`);
+  return parseJson(
+    response,
+    testCaseEventListResponseSchema,
+    `/test-cases/${testCaseId}/events`,
+  );
+}
+
+export async function revertTestCase(
+  testCaseId: number,
+  body: RevertTestCaseBody,
+): Promise<{ event: unknown; case: TestCase }> {
+  const response = await apiFetch(`/test-cases/${testCaseId}/revert`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(
+    response,
+    revertTestCaseResponseSchema,
+    `/test-cases/${testCaseId}/revert`,
+  );
+}
+
 export async function listProjects(): Promise<ProjectListResponse> {
-  const response = await fetch(`${API_BASE}/projects`);
-  return parseJson(response, projectListResponseSchema);
+  const response = await apiFetch("/projects");
+  return parseJson(response, projectListResponseSchema, "/projects");
 }
 
 export async function createProject(body: CreateProjectBody): Promise<Project> {
-  const response = await fetch(`${API_BASE}/projects`, {
+  const response = await apiFetch("/projects", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -84,7 +239,7 @@ export async function updateProject(
   id: number,
   body: PatchProjectBody,
 ): Promise<Project> {
-  const response = await fetch(`${API_BASE}/projects/${id}`, {
+  const response = await apiFetch(`/projects/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -93,7 +248,7 @@ export async function updateProject(
 }
 
 export async function getProjectTree(projectId: number): Promise<ProjectTree> {
-  const response = await fetch(`${API_BASE}/projects/${projectId}/tree`);
+  const response = await apiFetch(`/projects/${projectId}/tree`);
   return parseJson(response, projectTreeSchema);
 }
 
@@ -119,15 +274,15 @@ export async function listTestCases(
     search.set("directoryId", String(params.directoryId));
   }
 
-  const response = await fetch(`${API_BASE}/test-cases?${search.toString()}`);
+  const response = await apiFetch(`/test-cases?${search.toString()}`);
   return parseJson(response, testCaseListResponseSchema);
 }
 
 export async function getTestCaseByDisplayNumber(
   displayNumber: string,
 ): Promise<TestCase> {
-  const response = await fetch(
-    `${API_BASE}/test-cases/number/${encodeURIComponent(displayNumber)}`,
+  const response = await apiFetch(
+    `/test-cases/number/${encodeURIComponent(displayNumber)}`,
   );
   return parseJson(response, testCaseSchema);
 }
@@ -135,7 +290,7 @@ export async function getTestCaseByDisplayNumber(
 export async function createTestCase(
   body: CreateTestCaseBody,
 ): Promise<TestCase> {
-  const response = await fetch(`${API_BASE}/test-cases`, {
+  const response = await apiFetch("/test-cases", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -147,7 +302,7 @@ export async function updateTestCase(
   id: number,
   body: PutTestCaseBody,
 ): Promise<TestCase> {
-  const response = await fetch(`${API_BASE}/test-cases/${id}`, {
+  const response = await apiFetch(`/test-cases/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -159,7 +314,7 @@ export async function moveTestCase(
   id: number,
   body: MoveTestCaseBody,
 ): Promise<TestCase> {
-  const response = await fetch(`${API_BASE}/test-cases/${id}/move`, {
+  const response = await apiFetch(`/test-cases/${id}/move`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -168,7 +323,7 @@ export async function moveTestCase(
 }
 
 export async function deleteTestCase(id: number): Promise<TestCase> {
-  const response = await fetch(`${API_BASE}/test-cases/${id}`, {
+  const response = await apiFetch(`/test-cases/${id}`, {
     method: "DELETE",
   });
   return parseJson(response, testCaseSchema);
@@ -177,7 +332,7 @@ export async function deleteTestCase(id: number): Promise<TestCase> {
 export async function createDirectory(
   body: CreateDirectoryBody,
 ): Promise<Directory> {
-  const response = await fetch(`${API_BASE}/directories`, {
+  const response = await apiFetch("/directories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -189,7 +344,7 @@ export async function updateDirectory(
   id: number,
   body: PatchDirectoryBody,
 ): Promise<Directory> {
-  const response = await fetch(`${API_BASE}/directories/${id}`, {
+  const response = await apiFetch(`/directories/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -202,7 +357,7 @@ export async function deleteDirectory(
   mode?: DirectoryDeleteMode,
 ): Promise<DirectoryDeleteResponse> {
   const search = mode ? `?mode=${mode}` : "";
-  const response = await fetch(`${API_BASE}/directories/${id}${search}`, {
+  const response = await apiFetch(`/directories/${id}${search}`, {
     method: "DELETE",
   });
   return parseJson(response, directoryDeleteResponseSchema);
@@ -230,21 +385,21 @@ export async function listTrash(
   }
 
   const query = search.toString();
-  const response = await fetch(
-    `${API_BASE}/projects/${params.projectId}/trash${query ? `?${query}` : ""}`,
+  const response = await apiFetch(
+    `/projects/${params.projectId}/trash${query ? `?${query}` : ""}`,
   );
   return parseJson(response, testCaseListResponseSchema);
 }
 
 export async function restoreTestCase(id: number): Promise<TestCase> {
-  const response = await fetch(`${API_BASE}/test-cases/${id}/restore`, {
+  const response = await apiFetch(`/test-cases/${id}/restore`, {
     method: "POST",
   });
   return parseJson(response, testCaseSchema);
 }
 
 export async function permanentlyDeleteTestCase(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/test-cases/${id}/permanent`, {
+  const response = await apiFetch(`/test-cases/${id}/permanent`, {
     method: "DELETE",
   });
   if (!response.ok) {
@@ -268,7 +423,7 @@ export async function permanentlyDeleteTestCase(id: number): Promise<void> {
 export async function bulkTrash(
   body: BulkSelectionWithProject,
 ): Promise<{ count: number }> {
-  const response = await fetch(`${API_BASE}/test-cases/bulk-trash`, {
+  const response = await apiFetch("/test-cases/bulk-trash", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -279,7 +434,7 @@ export async function bulkTrash(
 export async function bulkRestore(
   body: BulkSelectionWithProject,
 ): Promise<{ count: number }> {
-  const response = await fetch(`${API_BASE}/test-cases/bulk-restore`, {
+  const response = await apiFetch("/test-cases/bulk-restore", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -291,7 +446,7 @@ export async function purgeTrash(
   projectId: number,
   selection: { ids: number[] } | { all: true; filter?: BulkFilter },
 ): Promise<{ count: number }> {
-  const response = await fetch(`${API_BASE}/projects/${projectId}/trash/purge`, {
+  const response = await apiFetch(`/projects/${projectId}/trash/purge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(selection),

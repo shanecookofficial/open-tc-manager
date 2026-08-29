@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { loginAsAdmin, loginViaPage } from "./helpers";
+
 function uniquePrefix() {
   const suffix = Date.now().toString(36).slice(-4).toUpperCase();
   return `B${suffix}`.slice(0, 10);
@@ -8,6 +10,11 @@ function uniquePrefix() {
 const LONG_TITLE = "L".repeat(200);
 
 test.describe("UI bug bash regressions", () => {
+  test.beforeEach(async ({ page, request }) => {
+    await loginAsAdmin(request);
+    await loginViaPage(page);
+  });
+
   test("200-character title renders without breaking list and detail layouts", async ({
     page,
     request,

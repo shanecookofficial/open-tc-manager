@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+import { loginViaPage } from "./helpers";
+
 const screens = [
   { name: "repository", path: "/p/WEB" },
   { name: "case detail", path: "/cases/WEB-11" },
@@ -9,6 +11,10 @@ const screens = [
 ] as const;
 
 for (const screen of screens) {
+  test.beforeEach(async ({ page }) => {
+    await loginViaPage(page);
+  });
+
   test(`${screen.name} has no critical axe violations`, async ({ page }) => {
     await page.goto(screen.path);
     await page.waitForLoadState("networkidle");

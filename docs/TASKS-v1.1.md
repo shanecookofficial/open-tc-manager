@@ -74,7 +74,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A4-1 · Login, session chrome, route guard
 
-- **Owner:** Composer · **Status:** todo · **Needs:** A1-2
+- **Owner:** Composer · **Status:** done · **Needs:** A1-2
 - `/login`; redirect unauthenticated users; header name/role/logout; api-client
   sends cookies. Playwright: login → repository; logout → login page.
 - **Accept:** e2e green against live API once A2-1 exists; until then fixtures
