@@ -14,6 +14,9 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "screenshots": "node scripts/capture-screenshots.mjs",
+    "seed:scale": "node scripts/seed-scale.mjs",
+    "seed:scale:cleanup": "node scripts/seed-scale.mjs --cleanup",
+    "measure:perf": "node scripts/measure-perf.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:prod": "node scripts/migrate.mjs",
@@ -42,6 +45,7 @@
     "zod": "^4.5.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.1.11",
     "@testing-library/jest-dom": "^7.0.1",
