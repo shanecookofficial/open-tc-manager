@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,8 @@ export function CaseList({
   pageAllSelected = false,
   pageSomeSelected = false,
 }: CaseListProps) {
+  const router = useRouter();
+
   if (isLoading) {
     return (
       <div className="space-y-2 p-4">
@@ -80,9 +83,19 @@ export function CaseList({
       </TableHeader>
       <TableBody>
         {cases.map((testCase) => (
-          <TableRow key={testCase.id} data-selected={selectedIds?.has(testCase.id)}>
+          <TableRow
+            key={testCase.id}
+            data-selected={selectedIds?.has(testCase.id)}
+            className="cursor-pointer"
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest("[data-stop-row-nav]")) {
+                return;
+              }
+              router.push(`/cases/${testCase.displayNumber}`);
+            }}
+          >
             {selectionMode ? (
-              <TableCell>
+              <TableCell data-stop-row-nav>
                 <Checkbox
                   checked={selectedIds?.has(testCase.id) ?? false}
                   onCheckedChange={(checked) =>
@@ -101,7 +114,12 @@ export function CaseList({
               </Link>
             </TableCell>
             <TableCell className="max-w-md truncate" title={testCase.title}>
-              {truncateTitle(testCase.title)}
+              <Link
+                href={`/cases/${testCase.displayNumber}`}
+                className="hover:underline"
+              >
+                {truncateTitle(testCase.title)}
+              </Link>
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {testCase.stepCount}

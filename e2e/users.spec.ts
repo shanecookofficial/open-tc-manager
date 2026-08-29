@@ -19,6 +19,12 @@ test.describe("Users admin", () => {
 
     await page.goto("/users");
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Select project|Web App|API/i }),
+    ).toHaveCount(0);
+    await page.getByRole("link", { name: "← Test cases" }).click();
+    await expect(page).not.toHaveURL(/\/users/);
+    await page.goto("/users");
 
     await page.getByRole("button", { name: "Create user" }).click();
     await page.getByLabel("Email").fill(testMemberEmail);

@@ -73,6 +73,13 @@ test.describe("Case history and revert", () => {
     await expect(historySection.getByText("Created")).toBeVisible();
     await expect(historySection.getByText("Updated")).toHaveCount(2);
 
+    await historySection.getByRole("button", { name: "Show diff" }).nth(1).click();
+    const diff = historySection.getByTestId("snapshot-diff");
+    await expect(diff).toBeVisible();
+    await expect(diff.getByLabel("Title diff")).toContainText("- Version A");
+    await expect(diff.getByLabel("Title diff")).toContainText("+ Version B");
+    await historySection.getByRole("button", { name: "Hide diff" }).click();
+
     await historySection.getByRole("button", { name: "Revert" }).first().click();
     const confirm = page.getByRole("alertdialog");
     await expect(

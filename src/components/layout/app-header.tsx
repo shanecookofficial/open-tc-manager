@@ -10,19 +10,29 @@ import { canManageUsers, roleLabel } from "@/lib/auth/permissions";
 
 type AppHeaderProps = {
   currentPrefix?: string;
+  /** Instance-level pages (Users) are not a project context. */
+  showProjectSwitcher?: boolean;
 };
 
-export function AppHeader({ currentPrefix }: AppHeaderProps) {
+export function AppHeader({
+  currentPrefix,
+  showProjectSwitcher = true,
+}: AppHeaderProps) {
   const { user, isLoading, logout } = useAuth();
 
   return (
     <header className="flex h-14 items-center gap-4 border-b px-4">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">
+        <Link
+          href="/"
+          className="truncate text-sm font-semibold hover:underline"
+        >
           OpenTCM — Open Test Case Manager
-        </p>
+        </Link>
       </div>
-      <ProjectSwitcher currentPrefix={currentPrefix} />
+      {showProjectSwitcher ? (
+        <ProjectSwitcher currentPrefix={currentPrefix} />
+      ) : null}
       <div className="flex items-center gap-2">
         {isLoading ? (
           <span className="text-sm text-muted-foreground">…</span>

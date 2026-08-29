@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Markdown } from "@/components/markdown";
+import { SnapshotDiffView } from "@/components/cases/snapshot-diff-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,8 +126,9 @@ export function CaseHistoryPanel({
         </p>
       ) : (
         <ol className="space-y-2">
-          {events.map((event) => {
+          {events.map((event, index) => {
             const expanded = expandedId === event.id;
+            const previous = index > 0 ? events[index - 1]!.snapshot : null;
             return (
               <li
                 key={event.id}
@@ -155,7 +156,7 @@ export function CaseHistoryPanel({
                         setExpandedId(expanded ? null : event.id)
                       }
                     >
-                      {expanded ? "Hide" : "Snapshot"}
+                      {expanded ? "Hide diff" : "Show diff"}
                     </Button>
                     {canRevert ? (
                       <Button
@@ -169,32 +170,11 @@ export function CaseHistoryPanel({
                   </div>
                 </div>
                 {expanded ? (
-                  <div className="space-y-3 border-t px-3 py-3 text-sm">
-                    <p>
-                      <span className="font-medium">Title:</span>{" "}
-                      {event.snapshot.title}
-                    </p>
-                    {event.snapshot.description ? (
-                      <div>
-                        <p className="mb-1 font-medium">Description</p>
-                        <div className="rounded border bg-muted/30 p-3">
-                          <Markdown>{event.snapshot.description}</Markdown>
-                        </div>
-                      </div>
-                    ) : null}
-                    <p>
-                      <span className="font-medium">Steps:</span>{" "}
-                      {event.snapshot.steps.length}
-                    </p>
-                    {event.snapshot.steps.length > 0 ? (
-                      <ul className="list-inside list-decimal space-y-1 text-muted-foreground">
-                        {event.snapshot.steps.map((step, index) => (
-                          <li key={index} className="truncate">
-                            {step.action}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
+                  <div className="border-t px-3 py-3">
+                    <SnapshotDiffView
+                      previous={previous}
+                      current={event.snapshot}
+                    />
                   </div>
                 ) : null}
               </li>

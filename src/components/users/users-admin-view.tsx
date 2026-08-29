@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -178,6 +179,12 @@ export function UsersAdminView() {
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            ← Test cases
+          </Link>
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="text-sm text-muted-foreground">
             Create accounts and manage roles for this OpenTCM instance.

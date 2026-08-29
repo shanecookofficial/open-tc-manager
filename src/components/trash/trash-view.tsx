@@ -406,9 +406,22 @@ export function TrashView({ project }: TrashViewProps) {
               </TableHeader>
               <TableBody>
                 {trashList.items.map((testCase) => (
-                  <TableRow key={testCase.id}>
+                  <TableRow
+                    key={testCase.id}
+                    className="cursor-pointer"
+                    onClick={(event) => {
+                      if (
+                        (event.target as HTMLElement).closest(
+                          "[data-stop-row-nav]",
+                        )
+                      ) {
+                        return;
+                      }
+                      router.push(`/cases/${testCase.displayNumber}`);
+                    }}
+                  >
                     {selectionMode ? (
-                      <TableCell>
+                      <TableCell data-stop-row-nav>
                         <Checkbox
                           checked={selectedIds.has(testCase.id)}
                           onCheckedChange={(checked) => {
@@ -440,17 +453,27 @@ export function TrashView({ project }: TrashViewProps) {
                       </TableCell>
                     ) : null}
                     <TableCell className="font-mono text-sm">
-                      {testCase.displayNumber}
+                      <Link
+                        href={`/cases/${testCase.displayNumber}`}
+                        className="text-primary hover:underline"
+                      >
+                        {testCase.displayNumber}
+                      </Link>
                     </TableCell>
                     <TableCell className="max-w-md truncate">
-                      {testCase.title}
+                      <Link
+                        href={`/cases/${testCase.displayNumber}`}
+                        className="hover:underline"
+                      >
+                        {testCase.title}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {testCase.deletedAt
                         ? formatDateTime(testCase.deletedAt)
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" data-stop-row-nav>
                       {canRestore || canPurge ? (
                         <div className="flex justify-end gap-2">
                           {canRestore ? (

@@ -146,8 +146,9 @@ forbidden endpoint directly.
 
 Every create, edit, move, trash, restore, and revert appends an event to the case
 **History** panel on the detail page (oldest → newest). Each row shows when it
-happened, who did it, the action, and a one-line summary. Expand **Snapshot** to
-see the full case state after that event.
+happened, who did it, the action, and a one-line summary. Expand **Show diff**
+to see a git-style diff of that event against the previous one (`-` removed,
+`+` added). The first event is shown as a new-file diff (all additions).
 
 **Revert** (Member and Admin) restores a chosen snapshot as the new current state
 and appends a new event — the timeline is never rewritten.

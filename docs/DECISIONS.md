@@ -381,3 +381,16 @@ case. Unknown `eventId` is 404; wrong-case `eventId` is 409 CONFLICT;
 Viewer is 403. Revert-of-revert is allowed. If snapshot.directoryId no
 longer exists in the project, the case lands at root (same fallback as
 restore) while the appended event's snapshot still equals the target.
+
+---
+
+**2026-08-29 — History diffs, row click, Users nav.** Product follow-ups:
+
+1. Expanding a history event shows a **git-style field diff** against the
+   previous event (title, description, folder, trash status, steps), not a
+   raw snapshot dump. First event is all additions.
+2. Repository and trash lists: the whole row (except checkbox/actions) opens
+   the case; title is a link, not only the `TC-n` number.
+3. Users is instance-level. Header product name links home; Users page hides
+   the project switcher and has **← Test cases**. Other nav ideas (settings
+   gear, sidebar Admin section) deferred unless the PO picks them.

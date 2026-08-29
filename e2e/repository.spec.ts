@@ -56,6 +56,17 @@ test.describe("Repository view", () => {
     ).not.toBeVisible();
   });
 
+  test("clicking a case title opens the case", async ({ page }) => {
+    await page.goto("/p/WEB");
+    await page
+      .getByRole("link", { name: /Login with valid credentials/i })
+      .click();
+    await expect(page).toHaveURL(/\/cases\/WEB-1$/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      "Login with valid credentials",
+    );
+  });
+
   test("search narrows the case list", async ({ page }) => {
     await page.goto("/p/WEB");
 
