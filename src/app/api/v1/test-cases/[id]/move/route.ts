@@ -6,4 +6,5 @@ import { moveTestCase } from "@/lib/api/test-cases";
 export const PATCH = apiHandler(
   { params: testCaseIdParamSchema, body: moveTestCaseBodySchema },
   async ({ params, body }) => json(await moveTestCase(params.id, body)),
+  { auth: "member" },
 );

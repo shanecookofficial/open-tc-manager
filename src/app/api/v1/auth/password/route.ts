@@ -1,19 +1,16 @@
 import { changePasswordBodySchema } from "@/lib/contracts";
 import { changeOwnPassword } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/errors";
 import { apiHandler } from "@/lib/api/handler";
 import { noContent } from "@/lib/api/http";
-import {
-  requireSession,
-  sessionCookieHeader,
-  touchSession,
-} from "@/lib/api/session";
 
 export const POST = apiHandler(
   { body: changePasswordBodySchema },
-  async ({ request, body }) => {
-    const session = await requireSession(request);
+  async ({ session, body }) => {
+    if (!session) {
+      throw new ApiError("UNAUTHENTICATED", "Sign in to continue.");
+    }
     await changeOwnPassword(session.user.id, body);
-    await touchSession(session.sessionId);
-    return noContent({ "Set-Cookie": sessionCookieHeader(session.token) });
+    return noContent();
   },
 );

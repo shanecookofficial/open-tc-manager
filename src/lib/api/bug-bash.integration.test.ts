@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { GET as CATCH_ALL } from "@/app/api/v1/[...path]/route";
 import {
@@ -37,9 +37,18 @@ import { pool } from "@/lib/db";
 
 import { toErrorResponse } from "./errors";
 import { createTestCase as createTestCaseService } from "./test-cases";
-import { invoke, uniqueName, uniquePrefix } from "./test-helpers";
+import {
+  authenticateAsTestAdmin,
+  invoke,
+  uniqueName,
+  uniquePrefix,
+} from "./test-helpers";
 
 const projectIds: number[] = [];
+
+beforeAll(async () => {
+  await authenticateAsTestAdmin();
+});
 
 afterEach(async () => {
   for (const id of projectIds.splice(0)) {

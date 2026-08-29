@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DELETE as DELETE_DIRECTORY } from "@/app/api/v1/directories/[id]/route";
 import { POST as POST_DIRECTORY } from "@/app/api/v1/directories/route";
@@ -27,9 +27,18 @@ import {
 } from "@/lib/contracts";
 import { pool } from "@/lib/db";
 
-import { invoke, uniqueName, uniquePrefix } from "./test-helpers";
+import {
+  authenticateAsTestAdmin,
+  invoke,
+  uniqueName,
+  uniquePrefix,
+} from "./test-helpers";
 
 const projectIds: number[] = [];
+
+beforeAll(async () => {
+  await authenticateAsTestAdmin();
+});
 
 afterEach(async () => {
   for (const id of projectIds.splice(0)) {

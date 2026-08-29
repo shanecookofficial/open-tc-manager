@@ -1,6 +1,14 @@
 import { z } from "zod";
 
+import type { User } from "@/lib/contracts";
 import { ApiError, formatZodError, toErrorResponse } from "./errors";
+import { assertRole, type AuthLevel } from "./roles";
+import {
+  requireSession,
+  sessionCookieHeader,
+  touchSession,
+  type AuthSession,
+} from "./session";
 
 export type RouteParams = Record<string, string>;
 
@@ -15,6 +23,17 @@ type Schemas<TParams, TQuery, TBody> = {
   body?: z.ZodType<TBody>;
   /** Empty body is treated as `{}` and then parsed with `body`. */
   bodyOptional?: boolean;
+};
+
+export type HandlerOptions = {
+  /**
+   * Default `"authenticated"` — every `/api/v1` route except login and health.
+   * Session is resolved before params/query/body so anonymous callers get 401
+   * first (API.md §1.10–§1.11).
+   */
+  auth?: AuthLevel;
+  /** Refresh session expiry and re-send the cookie. Default true when authed. */
+  sliding?: boolean;
 };
 
 function parseSchema<T>(schema: z.ZodType<T>, data: unknown): T {
@@ -62,6 +81,16 @@ async function parseBody<T>(
   return parseSchema(schema, raw);
 }
 
+function withSetCookie(response: Response, cookie: string): Response {
+  const headers = new Headers(response.headers);
+  headers.append("Set-Cookie", cookie);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 /**
  * Zod request validation → typed handler → contract error envelope.
  * Thrown `ApiError`s map to `{ error: { code, message } }` with the right status.
@@ -77,10 +106,22 @@ export function apiHandler<
     params: TParams;
     query: TQuery;
     body: TBody;
+    session: AuthSession | null;
+    user: User | null;
   }) => Response | Promise<Response>,
+  options: HandlerOptions = {},
 ): (request: Request, context?: AppRouteContext) => Promise<Response> {
+  const auth: AuthLevel = options.auth ?? "authenticated";
+  const sliding = options.sliding ?? auth !== "public";
+
   return async (request, context) => {
     try {
+      let session: AuthSession | null = null;
+      if (auth !== "public") {
+        session = await requireSession(request);
+        assertRole(session.user.role, auth);
+      }
+
       const rawParams = context?.params ? await context.params : {};
       const params = schemas.params
         ? parseSchema(schemas.params, rawParams)
@@ -92,7 +133,21 @@ export function apiHandler<
         ? await parseBody(request, schemas.body, schemas.bodyOptional === true)
         : (undefined as TBody);
 
-      return await handler({ request, params, query, body });
+      const response = await handler({
+        request,
+        params,
+        query,
+        body,
+        session,
+        user: session?.user ?? null,
+      });
+
+      if (session && sliding && !response.headers.has("Set-Cookie")) {
+        await touchSession(session.sessionId);
+        return withSetCookie(response, sessionCookieHeader(session.token));
+      }
+
+      return response;
     } catch (error) {
       return toErrorResponse(error);
     }

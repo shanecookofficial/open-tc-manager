@@ -15,9 +15,11 @@ export const GET = apiHandler(
 export const PUT = apiHandler(
   { params: testCaseIdParamSchema, body: putTestCaseBodySchema },
   async ({ params, body }) => json(await updateTestCase(params.id, body)),
+  { auth: "member" },
 );
 
 export const DELETE = apiHandler(
   { params: testCaseIdParamSchema },
   async ({ params }) => json(await softDeleteTestCase(params.id)),
+  { auth: "member" },
 );

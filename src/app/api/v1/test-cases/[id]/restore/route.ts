@@ -6,4 +6,5 @@ import { restoreTestCase } from "@/lib/api/trash";
 export const POST = apiHandler(
   { params: testCaseIdParamSchema },
   async ({ params }) => json(await restoreTestCase(params.id)),
+  { auth: "member" },
 );

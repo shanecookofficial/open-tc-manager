@@ -9,4 +9,5 @@ export const POST = apiHandler(
     const directory = await createDirectory(body);
     return created(directory, `/api/v1/directories/${directory.id}`);
   },
+  { auth: "member" },
 );

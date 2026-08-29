@@ -17,4 +17,5 @@ export const POST = apiHandler(
     const testCase = await createTestCase(body);
     return created(testCase, `/api/v1/test-cases/${testCase.id}`);
   },
+  { auth: "member" },
 );

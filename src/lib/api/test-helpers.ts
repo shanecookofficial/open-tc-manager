@@ -1,8 +1,17 @@
 import { randomBytes } from "node:crypto";
 
-import { SESSION_COOKIE_NAME } from "@/lib/contracts";
+import { eq } from "drizzle-orm";
+
+import { POST as LOGIN } from "@/app/api/v1/auth/login/route";
+import {
+  SESSION_COOKIE_NAME,
+  sessionUserResponseSchema,
+  type User,
+} from "@/lib/contracts";
+import { db, users } from "@/lib/db";
 
 import type { AppRouteContext } from "./handler";
+import { hashPassword } from "./password";
 
 type RouteHandler = (
   request: Request,
@@ -16,9 +25,26 @@ export type ApiResult<T = unknown> = {
   text: string;
 };
 
+const TEST_ADMIN_EMAIL = "it-admin@opentcm.local";
+const TEST_ADMIN_PASSWORD = "it-admin-password";
+
+let defaultTestCookie: string | undefined;
+
+export function setDefaultTestCookie(cookie: string | undefined): void {
+  defaultTestCookie = cookie;
+}
+
+function formatCookieHeader(cookie: string): string {
+  return cookie.includes("=") ? cookie : `${SESSION_COOKIE_NAME}=${cookie}`;
+}
+
 /**
  * Invoke a Next.js App Router route handler with a constructed Request.
  * Used by integration tests against the live database.
+ *
+ * When `authenticateAsTestAdmin()` has run in this file, protected routes
+ * receive that Admin cookie unless `unauthenticated: true` or an explicit
+ * `cookie` is passed.
  */
 export async function invoke<T = unknown>(
   handler: RouteHandler,
@@ -31,6 +57,8 @@ export async function invoke<T = unknown>(
     params?: Record<string, string>;
     /** Opaque session token or a full `Cookie` header value. */
     cookie?: string;
+    /** Do not attach the default Admin session cookie. */
+    unauthenticated?: boolean;
   },
 ): Promise<ApiResult<T>> {
   const init: RequestInit = { method: options.method ?? "GET" };
@@ -45,11 +73,13 @@ export async function invoke<T = unknown>(
     init.body = JSON.stringify(options.body);
   }
 
-  if (!headers.has("cookie") && options.cookie) {
-    const cookie = options.cookie.includes("=")
-      ? options.cookie
-      : `${SESSION_COOKIE_NAME}=${options.cookie}`;
-    headers.set("cookie", cookie);
+  if (!headers.has("cookie")) {
+    const cookie = options.unauthenticated
+      ? undefined
+      : (options.cookie ?? defaultTestCookie);
+    if (cookie) {
+      headers.set("cookie", formatCookieHeader(cookie));
+    }
   }
 
   if ([...headers.keys()].length > 0) {
@@ -119,3 +149,82 @@ export function cookieCleared(headers: Headers): boolean {
     new RegExp(`${SESSION_COOKIE_NAME}=(?:;|$)|Max-Age=0`).test(line),
   );
 }
+
+/**
+ * Ensure a stable Admin exists, log in, and attach the cookie to subsequent
+ * `invoke` calls in this test file.
+ */
+export async function authenticateAsTestAdmin(): Promise<{
+  cookie: string;
+  user: User;
+}> {
+  const [existing] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, TEST_ADMIN_EMAIL))
+    .limit(1);
+
+  if (!existing) {
+    await db.insert(users).values({
+      email: TEST_ADMIN_EMAIL,
+      displayName: "Integration Admin",
+      passwordHash: await hashPassword(TEST_ADMIN_PASSWORD),
+      role: "admin",
+    });
+  } else if (existing.role !== "admin" || existing.deactivatedAt) {
+    await db
+      .update(users)
+      .set({
+        role: "admin",
+        deactivatedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, existing.id));
+  }
+
+  const result = await invoke(LOGIN, {
+    method: "POST",
+    path: "/api/v1/auth/login",
+    body: { email: TEST_ADMIN_EMAIL, password: TEST_ADMIN_PASSWORD },
+    unauthenticated: true,
+  });
+  if (result.status !== 200) {
+    throw new Error(`test admin login failed: ${result.status} ${result.text}`);
+  }
+
+  const token = sessionTokenFromResponse(result.headers);
+  if (!token) {
+    throw new Error("test admin login did not Set-Cookie");
+  }
+
+  setDefaultTestCookie(token);
+  return {
+    cookie: token,
+    user: sessionUserResponseSchema.parse(result.json).user,
+  };
+}
+
+export async function loginAs(
+  email: string,
+  password: string,
+): Promise<{ cookie: string; user: User }> {
+  const result = await invoke(LOGIN, {
+    method: "POST",
+    path: "/api/v1/auth/login",
+    body: { email, password },
+    unauthenticated: true,
+  });
+  if (result.status !== 200) {
+    throw new Error(`loginAs failed: ${result.status} ${result.text}`);
+  }
+  const token = sessionTokenFromResponse(result.headers);
+  if (!token) {
+    throw new Error("loginAs did not Set-Cookie");
+  }
+  return {
+    cookie: token,
+    user: sessionUserResponseSchema.parse(result.json).user,
+  };
+}
+
+export { TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD };

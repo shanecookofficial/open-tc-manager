@@ -41,7 +41,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A2-2 · User admin endpoints + RBAC wrapper
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** A2-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** A2-1
 - Users CRUD-ish per PLAN-v1.1 §7; last-Admin protection; wrap all existing
   `/api/v1` routes (except login + health) with session + role checks per §4.
 - **Accept:** Viewer gets 403 on POST case; Member 403 on purge and POST /users;

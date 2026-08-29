@@ -11,6 +11,7 @@ import { invoke } from "./test-helpers";
 const demoPost = apiHandler(
   { body: z.strictObject({ title: z.string().trim().min(1) }) },
   async ({ body }) => json({ title: body.title }),
+  { auth: "public" },
 );
 
 describe("GET /api/v1/health", () => {
@@ -44,6 +45,7 @@ describe("apiHandler validation", () => {
     const getById = apiHandler(
       { params: z.object({ id: z.coerce.number().int().positive() }) },
       async ({ params }) => json({ id: params.id }),
+      { auth: "public" },
     );
 
     const result = await invoke(getById, {

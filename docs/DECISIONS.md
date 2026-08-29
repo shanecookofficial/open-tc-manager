@@ -334,3 +334,23 @@ Choices worth not rediscovering:
   `401 UNAUTHENTICATED` and the session row is deleted.
 - `POST /auth/password` does not invalidate other sessions. Admins set
   someone else's password in A2-2 via `PATCH /users/:id`.
+
+---
+
+**2026-08-29 — v1.1 users admin + RBAC wrapper (A2-2).**
+
+- `apiHandler` defaults to `auth: "authenticated"`. Session + role are
+  resolved **before** params/query/body so anonymous callers get 401 first.
+  Login and health pass `{ auth: "public" }`. Writes use `"member"` or
+  `"admin"` per API.md §1.11. Successful authed responses refresh the
+  7-day sliding cookie unless the handler already set `Set-Cookie` (logout).
+- Last-Admin protection: cannot set `deactivatedAt` to a timestamp or change
+  `role` away from `admin` when the target is the only remaining active
+  Admin (`409 CONFLICT`). Reactivate (`deactivatedAt: null`) is always
+  allowed. Email is not patchable.
+- Existing integration tests attach an Admin session via
+  `authenticateAsTestAdmin()` + a default cookie on `invoke`. Pass
+  `unauthenticated: true` or an explicit `cookie` to opt out.
+- Role checks at the wrapper mean a Viewer write to an unknown id is 403
+  rather than 404. Collection POSTs and the A2-2 accept tests do not depend
+  on that nuance. A3 can thread `ctx.user` for event actor fields.

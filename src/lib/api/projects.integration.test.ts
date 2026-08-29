@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DELETE, PATCH } from "@/app/api/v1/projects/[id]/route";
 import { GET, POST } from "@/app/api/v1/projects/route";
@@ -12,9 +12,18 @@ import { testCases } from "@/lib/db/schema";
 import { db } from "@/lib/db";
 
 import { allocateCaseNumber } from "./numbering";
-import { invoke, uniqueName, uniquePrefix } from "./test-helpers";
+import {
+  authenticateAsTestAdmin,
+  invoke,
+  uniqueName,
+  uniquePrefix,
+} from "./test-helpers";
 
 const createdIds: number[] = [];
+
+beforeAll(async () => {
+  await authenticateAsTestAdmin();
+});
 
 afterEach(async () => {
   for (const id of createdIds.splice(0)) {

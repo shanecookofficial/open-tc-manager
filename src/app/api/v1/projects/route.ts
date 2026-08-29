@@ -11,4 +11,5 @@ export const POST = apiHandler(
     const project = await createProject(body);
     return created(project, `/api/v1/projects/${project.id}`);
   },
+  { auth: "admin" },
 );
