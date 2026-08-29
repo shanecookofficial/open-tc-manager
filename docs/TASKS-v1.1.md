@@ -61,7 +61,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A3-2 · List events + revert
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** A3-1
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** A3-1
 - GET timeline oldest-first. POST revert applies snapshot, appends `reverted`
   event. **Binding test:** mutate A→B→C, revert to A, GET events snapshots equal
   A,B,C,A (fourth snapshot deep-equals first); events A–C unchanged.

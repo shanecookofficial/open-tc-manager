@@ -368,3 +368,16 @@ from `ctx.user` (`requireActor`). Directory `trash_contents` /
 `move_contents_to_parent` also write per-case events (they are trash/move
 of cases). A rolled-back mutation writes nothing. Seeded cases still
 start with zero events.
+
+---
+
+**2026-08-29 — v1.1 history list + revert (A3-2).** `GET /test-cases/:id/events`
+is oldest-first, default/max `limit` 500 (most-recent window if over cap).
+`POST /test-cases/:id/revert` `{ eventId }` applies that snapshot to the
+case (title, description, directory, steps, `deletedAt`) and **appends**
+`action=reverted` with `reverted_event_id` and a snapshot deep-equal to
+the restored one. 201 `{ event, case }` with `Location` pointing at the
+case. Unknown `eventId` is 404; wrong-case `eventId` is 409 CONFLICT;
+Viewer is 403. Revert-of-revert is allowed. If snapshot.directoryId no
+longer exists in the project, the case lands at root (same fallback as
+restore) while the appended event's snapshot still equals the target.

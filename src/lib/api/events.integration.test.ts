@@ -10,7 +10,13 @@ import { POST as BULK_RESTORE } from "@/app/api/v1/test-cases/bulk-restore/route
 import { POST as BULK_TRASH } from "@/app/api/v1/test-cases/bulk-trash/route";
 import { PATCH as PATCH_MOVE } from "@/app/api/v1/test-cases/[id]/move/route";
 import { POST as RESTORE } from "@/app/api/v1/test-cases/[id]/restore/route";
-import { DELETE as SOFT_DELETE, PUT } from "@/app/api/v1/test-cases/[id]/route";
+import { GET as GET_EVENTS } from "@/app/api/v1/test-cases/[id]/events/route";
+import { POST as REVERT } from "@/app/api/v1/test-cases/[id]/revert/route";
+import {
+  DELETE as SOFT_DELETE,
+  GET as GET_BY_ID,
+  PUT,
+} from "@/app/api/v1/test-cases/[id]/route";
 import { POST as POST_CASE } from "@/app/api/v1/test-cases/route";
 import {
   authenticateAsTestAdmin,
@@ -26,6 +32,8 @@ import {
   directorySchema,
   errorBodySchema,
   projectSchema,
+  revertTestCaseResponseSchema,
+  testCaseEventListResponseSchema,
   testCaseSchema,
   userSchema,
 } from "@/lib/contracts";
@@ -383,5 +391,300 @@ describe("A3-1 history event writes", () => {
       expect(rows[1].snapshot.deletedAt).not.toBeNull();
       expect(rows[1].snapshot.directoryId).toBeNull();
     }
+  });
+});
+
+async function listEvents(testCaseId: number, cookie?: string, limit?: number) {
+  const query = limit === undefined ? "" : `?limit=${limit}`;
+  const result = await invoke(GET_EVENTS, {
+    path: `/api/v1/test-cases/${testCaseId}/events${query}`,
+    params: { id: String(testCaseId) },
+    cookie,
+  });
+  return result;
+}
+
+describe("A3-2 list events + revert", () => {
+  it("binding: mutate A→B→C, revert to A; GET events snapshots equal A,B,C,A and A–C rows unchanged", async () => {
+    const project = await createProject();
+    const dir = await createDir(project.id, "Login");
+    const created = await createCase(
+      project.id,
+      "Login with valid credentials",
+      {
+        directoryId: dir.id,
+        description: "Happy-path login for a verified shopper.",
+        steps: [
+          {
+            action: "Open `/login`.",
+            expectedResult: "The email and password fields are empty.",
+          },
+          { action: "Submit valid credentials.", expectedResult: null },
+        ],
+      },
+    );
+    const snapshotA = snapshotOf(created);
+
+    const putB = await invoke(PUT, {
+      method: "PUT",
+      path: `/api/v1/test-cases/${created.id}`,
+      params: { id: String(created.id) },
+      body: {
+        title: "Login with valid credentials — shopper",
+        description: created.description,
+        directoryId: dir.id,
+        steps: created.steps.map((step) => ({
+          action: step.action,
+          expectedResult: step.expectedResult,
+        })),
+      },
+    });
+    expect(putB.status).toBe(200);
+    const caseB = testCaseSchema.parse(putB.json);
+    const snapshotB = snapshotOf(caseB);
+
+    const putC = await invoke(PUT, {
+      method: "PUT",
+      path: `/api/v1/test-cases/${created.id}`,
+      params: { id: String(created.id) },
+      body: {
+        title: caseB.title,
+        description:
+          "Second edit: shopper login after the title change. Revert target is still the original created snapshot.",
+        directoryId: dir.id,
+        steps: [
+          {
+            action: "Open `/login`.",
+            expectedResult: "Login form is shown.",
+          },
+          { action: "Submit valid credentials.", expectedResult: null },
+          {
+            action: "Land on `/dashboard`.",
+            expectedResult: "Header shows the shopper.",
+          },
+        ],
+      },
+    });
+    expect(putC.status).toBe(200);
+    const caseC = testCaseSchema.parse(putC.json);
+    const snapshotC = snapshotOf(caseC);
+
+    const listedBefore = await listEvents(created.id);
+    expect(listedBefore.status).toBe(200);
+    const before = testCaseEventListResponseSchema.parse(listedBefore.json);
+    expect(before.items).toHaveLength(3);
+    expect(before.items.map((item) => item.snapshot)).toEqual([
+      snapshotA,
+      snapshotB,
+      snapshotC,
+    ]);
+    const frozenAtoC = structuredClone(before.items);
+
+    const reverted = await invoke(REVERT, {
+      method: "POST",
+      path: `/api/v1/test-cases/${created.id}/revert`,
+      params: { id: String(created.id) },
+      body: { eventId: frozenAtoC[0].id },
+    });
+    expect(reverted.status).toBe(201);
+    expect(reverted.headers.get("Location")).toBe(
+      `/api/v1/test-cases/${created.id}`,
+    );
+    const revertBody = revertTestCaseResponseSchema.parse(reverted.json);
+    expect(revertBody.event.action).toBe("reverted");
+    expect(revertBody.event.revertedEventId).toBe(frozenAtoC[0].id);
+    expect(revertBody.event.snapshot).toEqual(snapshotA);
+    expect(snapshotOf(revertBody.case)).toEqual(snapshotA);
+
+    const listedAfter = await listEvents(created.id);
+    expect(listedAfter.status).toBe(200);
+    const after = testCaseEventListResponseSchema.parse(listedAfter.json);
+    expect(after.items).toHaveLength(4);
+    expect(after.items[0]).toEqual(frozenAtoC[0]);
+    expect(after.items[1]).toEqual(frozenAtoC[1]);
+    expect(after.items[2]).toEqual(frozenAtoC[2]);
+    expect(after.items.map((item) => item.snapshot)).toEqual([
+      snapshotA,
+      snapshotB,
+      snapshotC,
+      snapshotA,
+    ]);
+    expect(after.items[3]).toEqual(revertBody.event);
+
+    const current = await invoke(GET_BY_ID, {
+      path: `/api/v1/test-cases/${created.id}`,
+      params: { id: String(created.id) },
+    });
+    expect(current.status).toBe(200);
+    expect(snapshotOf(testCaseSchema.parse(current.json))).toEqual(snapshotA);
+  });
+
+  it("returns 404 for an unknown eventId and 409 when the event belongs to another case", async () => {
+    const project = await createProject();
+    const first = await createCase(project.id, "Case one");
+    const second = await createCase(project.id, "Case two");
+    const secondEvents = testCaseEventListResponseSchema.parse(
+      (await listEvents(second.id)).json,
+    );
+
+    const missing = await invoke(REVERT, {
+      method: "POST",
+      path: `/api/v1/test-cases/${first.id}/revert`,
+      params: { id: String(first.id) },
+      body: { eventId: 999_999_999 },
+    });
+    expect(missing.status).toBe(404);
+    expect(errorBodySchema.parse(missing.json).error.code).toBe("NOT_FOUND");
+
+    const wrongCase = await invoke(REVERT, {
+      method: "POST",
+      path: `/api/v1/test-cases/${first.id}/revert`,
+      params: { id: String(first.id) },
+      body: { eventId: secondEvents.items[0].id },
+    });
+    expect(wrongCase.status).toBe(409);
+    const conflict = errorBodySchema.parse(wrongCase.json);
+    expect(conflict.error.code).toBe("CONFLICT");
+    expect(conflict.error.message).toBe(
+      `Event ${secondEvents.items[0].id} does not belong to test case ${first.id}.`,
+    );
+  });
+
+  it("returns 403 FORBIDDEN when a Viewer tries to revert; Viewer can still read history", async () => {
+    const project = await createProject();
+    const created = await createCase(project.id, "Viewer readable");
+    const viewer = await createRole("viewer");
+    const listed = await listEvents(created.id, viewer.cookie);
+    expect(listed.status).toBe(200);
+    const events = testCaseEventListResponseSchema.parse(listed.json);
+
+    const result = await invoke(REVERT, {
+      method: "POST",
+      path: `/api/v1/test-cases/${created.id}/revert`,
+      params: { id: String(created.id) },
+      body: { eventId: events.items[0].id },
+      cookie: viewer.cookie,
+    });
+    expect(result.status).toBe(403);
+    expect(errorBodySchema.parse(result.json).error.code).toBe("FORBIDDEN");
+  });
+
+  it("allows reverting a revert (restore B after A→B→C→A)", async () => {
+    const project = await createProject();
+    const created = await createCase(project.id, "State A");
+    const snapshotA = snapshotOf(created);
+
+    const putB = await invoke(PUT, {
+      method: "PUT",
+      path: `/api/v1/test-cases/${created.id}`,
+      params: { id: String(created.id) },
+      body: {
+        title: "State B",
+        description: null,
+        directoryId: null,
+        steps: [{ action: "B step", expectedResult: null }],
+      },
+    });
+    const snapshotB = snapshotOf(testCaseSchema.parse(putB.json));
+
+    await invoke(PUT, {
+      method: "PUT",
+      path: `/api/v1/test-cases/${created.id}`,
+      params: { id: String(created.id) },
+      body: {
+        title: "State C",
+        description: null,
+        directoryId: null,
+        steps: [{ action: "C step", expectedResult: null }],
+      },
+    });
+
+    const before = testCaseEventListResponseSchema.parse(
+      (await listEvents(created.id)).json,
+    );
+    await invoke(REVERT, {
+      method: "POST",
+      path: `/api/v1/test-cases/${created.id}/revert`,
+      params: { id: String(created.id) },
+      body: { eventId: before.items[0].id },
+    });
+
+    const afterFirstRevert = testCaseEventListResponseSchema.parse(
+      (await listEvents(created.id)).json,
+    );
+    expect(afterFirstRevert.items.map((item) => item.snapshot)).toEqual([
+      snapshotA,
+      snapshotB,
+      afterFirstRevert.items[2].snapshot,
+      snapshotA,
+    ]);
+
+    const second = await invoke(REVERT, {
+      method: "POST",
+      path: `/api/v1/test-cases/${created.id}/revert`,
+      params: { id: String(created.id) },
+      body: { eventId: before.items[1].id },
+    });
+    expect(second.status).toBe(201);
+    const secondBody = revertTestCaseResponseSchema.parse(second.json);
+    expect(secondBody.event.action).toBe("reverted");
+    expect(secondBody.event.revertedEventId).toBe(before.items[1].id);
+    expect(secondBody.event.snapshot).toEqual(snapshotB);
+    expect(snapshotOf(secondBody.case)).toEqual(snapshotB);
+
+    const timeline = testCaseEventListResponseSchema.parse(
+      (await listEvents(created.id)).json,
+    );
+    expect(timeline.items).toHaveLength(5);
+    expect(timeline.items[4].snapshot).toEqual(snapshotB);
+    expect(timeline.items[3].action).toBe("reverted");
+  });
+
+  it("returns the most recent limit events still ordered oldest-first; 404s unknown cases; 401 without a session", async () => {
+    const project = await createProject();
+    const created = await createCase(project.id, "Limit A");
+    await invoke(PUT, {
+      method: "PUT",
+      path: `/api/v1/test-cases/${created.id}`,
+      params: { id: String(created.id) },
+      body: {
+        title: "Limit B",
+        description: null,
+        directoryId: null,
+        steps: [],
+      },
+    });
+    await invoke(PUT, {
+      method: "PUT",
+      path: `/api/v1/test-cases/${created.id}`,
+      params: { id: String(created.id) },
+      body: {
+        title: "Limit C",
+        description: null,
+        directoryId: null,
+        steps: [],
+      },
+    });
+
+    const windowed = await listEvents(created.id, undefined, 2);
+    expect(windowed.status).toBe(200);
+    const body = testCaseEventListResponseSchema.parse(windowed.json);
+    expect(body.items).toHaveLength(2);
+    expect(body.items.map((item) => item.snapshot.title)).toEqual([
+      "Limit B",
+      "Limit C",
+    ]);
+    expect(body.items[0].createdAt <= body.items[1].createdAt).toBe(true);
+
+    const missing = await listEvents(999_999_999);
+    expect(missing.status).toBe(404);
+
+    const anon = await invoke(GET_EVENTS, {
+      path: `/api/v1/test-cases/${created.id}/events`,
+      params: { id: String(created.id) },
+      unauthenticated: true,
+    });
+    expect(anon.status).toBe(401);
+    expect(errorBodySchema.parse(anon.json).error.code).toBe("UNAUTHENTICATED");
   });
 });
