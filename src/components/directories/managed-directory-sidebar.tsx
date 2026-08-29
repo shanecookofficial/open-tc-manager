@@ -18,6 +18,7 @@ type ManagedDirectorySidebarProps = {
   selection: DirectorySelection;
   onSelect: (selection: DirectorySelection) => void;
   onMutated: () => void;
+  manageMode?: boolean;
 };
 
 export function ManagedDirectorySidebar({
@@ -26,6 +27,7 @@ export function ManagedDirectorySidebar({
   selection,
   onSelect,
   onMutated,
+  manageMode = false,
 }: ManagedDirectorySidebarProps) {
   const [manageAction, setManageAction] = useState<DirectoryManageAction | null>(
     null,
@@ -40,8 +42,8 @@ export function ManagedDirectorySidebar({
         trashCount={tree.trashCount}
         selection={selection}
         onSelect={onSelect}
-        manageMode
-        onManageAction={setManageAction}
+        manageMode={manageMode}
+        onManageAction={manageMode ? setManageAction : undefined}
       />
       <DirectoryDialogs
         projectId={tree.projectId}

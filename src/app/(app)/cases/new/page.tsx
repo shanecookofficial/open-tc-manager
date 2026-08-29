@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { CaseEditorForm } from "@/components/cases/case-editor-form";
+import { WriteGuard } from "@/components/auth/write-guard";
 import { AppHeader } from "@/components/layout/app-header";
 import { listProjects } from "@/lib/api/projects";
 
@@ -34,11 +35,13 @@ export default async function NewCasePage({ searchParams }: NewCasePageProps) {
   return (
     <>
       <AppHeader currentPrefix={project.prefix} />
-      <CaseEditorForm
-        mode="create"
-        project={project}
-        initialDirectoryId={initialDirectoryId}
-      />
+      <WriteGuard>
+        <CaseEditorForm
+          mode="create"
+          project={project}
+          initialDirectoryId={initialDirectoryId}
+        />
+      </WriteGuard>
     </>
   );
 }

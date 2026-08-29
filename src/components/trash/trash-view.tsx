@@ -6,9 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  PaginationControls,
-} from "@/components/repository/case-list";
+import { useAuth } from "@/components/auth/auth-context";
+import { PaginationControls } from "@/components/repository/case-list";
 import {
   directoryParamToSelection,
   directorySelectionToApiFilter,
@@ -41,6 +40,11 @@ import {
   restoreTestCase,
   optionalBulkFilter,
 } from "@/lib/api-client";
+import {
+  canBulkTrash,
+  canPurgeTrash,
+  canWriteCases,
+} from "@/lib/auth/permissions";
 import { formatDateTime } from "@/lib/format-date";
 import type { BulkFilter, Project, TestCaseSummary } from "@/lib/contracts";
 
@@ -54,6 +58,11 @@ type TrashViewProps = {
 
 export function TrashView({ project }: TrashViewProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const userRole = user?.role ?? "viewer";
+  const canRestore = canWriteCases(userRole);
+  const canSelect = canBulkTrash(userRole);
+  const canPurge = canPurgeTrash(userRole);
   const searchParams = useSearchParams();
 
   const directoryParam = searchParams.get("dir");
@@ -301,18 +310,20 @@ export function TrashView({ project }: TrashViewProps) {
               aria-label="Search trash"
             />
           </div>
-          <Button
-            variant={selectionMode ? "secondary" : "outline"}
-            onClick={() => {
-              if (selectionMode) exitSelectionMode();
-              else setSelectionMode(true);
-            }}
-          >
-            {selectionMode ? "Cancel" : "Select cases"}
-          </Button>
+          {canSelect ? (
+            <Button
+              variant={selectionMode ? "secondary" : "outline"}
+              onClick={() => {
+                if (selectionMode) exitSelectionMode();
+                else setSelectionMode(true);
+              }}
+            >
+              {selectionMode ? "Cancel" : "Select cases"}
+            </Button>
+          ) : null}
         </div>
 
-        {selectionMode && trashList && trashList.totalItems > 0 ? (
+        {selectionMode && canSelect && trashList && trashList.totalItems > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2 text-sm">
             <div className="flex items-center gap-3">
               <span className="font-medium">{selectedCount} selected</span>
@@ -333,25 +344,29 @@ export function TrashView({ project }: TrashViewProps) {
               ) : null}
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={selectedCount === 0}
-                onClick={handleBulkRestore}
-              >
-                Restore
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={selectedCount === 0}
-                data-testid="bulk-delete-permanently"
-                onClick={() =>
-                  setTypedConfirm({ kind: "bulk", count: selectedCount })
-                }
-              >
-                Delete permanently
-              </Button>
+              {canRestore ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={selectedCount === 0}
+                  onClick={handleBulkRestore}
+                >
+                  Restore
+                </Button>
+              ) : null}
+              {canPurge ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={selectedCount === 0}
+                  data-testid="bulk-delete-permanently"
+                  onClick={() =>
+                    setTypedConfirm({ kind: "bulk", count: selectedCount })
+                  }
+                >
+                  Delete permanently
+                </Button>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -436,26 +451,34 @@ export function TrashView({ project }: TrashViewProps) {
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleRestore(testCase.id, testCase.displayNumber)
-                          }
-                        >
-                          Restore
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() =>
-                            setTypedConfirm({ kind: "single", testCase })
-                          }
-                        >
-                          Delete permanently
-                        </Button>
-                      </div>
+                      {canRestore || canPurge ? (
+                        <div className="flex justify-end gap-2">
+                          {canRestore ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleRestore(testCase.id, testCase.displayNumber)
+                              }
+                            >
+                              Restore
+                            </Button>
+                          ) : null}
+                          {canPurge ? (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() =>
+                                setTypedConfirm({ kind: "single", testCase })
+                              }
+                            >
+                              Delete permanently
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

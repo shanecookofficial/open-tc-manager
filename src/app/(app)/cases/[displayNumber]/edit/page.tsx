@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { CaseEditorForm } from "@/components/cases/case-editor-form";
+import { WriteGuard } from "@/components/auth/write-guard";
 import { AppHeader } from "@/components/layout/app-header";
 import { listProjects } from "@/lib/api/projects";
 import { getTestCaseByDisplayNumber } from "@/lib/api/test-cases";
@@ -33,7 +34,9 @@ export default async function EditCasePage({ params }: EditCasePageProps) {
   return (
     <>
       <AppHeader currentPrefix={project.prefix} />
-      <CaseEditorForm mode="edit" project={project} testCase={testCase} />
+      <WriteGuard>
+        <CaseEditorForm mode="edit" project={project} testCase={testCase} />
+      </WriteGuard>
     </>
   );
 }

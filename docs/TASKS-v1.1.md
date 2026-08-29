@@ -97,7 +97,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A4-4 · Role-aware repository chrome
 
-- **Owner:** Composer · **Status:** todo · **Needs:** A4-1, A2-2
+- **Owner:** Composer · **Status:** done · **Needs:** A4-1, A2-2
 - Viewer: no New case, Select, directory write, purge, project create. Member: no
   purge, no project settings, no Users.
 - **Accept:** Playwright Viewer cannot submit create case (no button + API 403 if

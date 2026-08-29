@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { ProjectCreateDialog } from "@/components/projects/project-create-dialog";
 import { ProjectEditDialog } from "@/components/projects/project-edit-dialog";
+import { useAuth } from "@/components/auth/auth-context";
 import { useProjects } from "@/components/projects/projects-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Project } from "@/lib/contracts";
+import { canManageProjects } from "@/lib/auth/permissions";
 
 type ProjectSwitcherProps = {
   currentPrefix?: string;
@@ -24,7 +26,9 @@ type ProjectSwitcherProps = {
 
 export function ProjectSwitcher({ currentPrefix }: ProjectSwitcherProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const { projects, refetch } = useProjects();
+  const canManage = user ? canManageProjects(user.role) : false;
   const [createOpen, setCreateOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
 
@@ -86,11 +90,13 @@ export function ProjectSwitcher({ currentPrefix }: ProjectSwitcherProps) {
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-            <PlusIcon />
-            Create project…
-          </DropdownMenuItem>
-          {current ? (
+          {canManage ? (
+            <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
+              <PlusIcon />
+              Create project…
+            </DropdownMenuItem>
+          ) : null}
+          {canManage && current ? (
             <DropdownMenuItem onSelect={() => setEditProject(current)}>
               <PencilIcon />
               Edit current project…
@@ -99,19 +105,23 @@ export function ProjectSwitcher({ currentPrefix }: ProjectSwitcherProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ProjectCreateDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={handleCreated}
-      />
-      <ProjectEditDialog
-        project={editProject}
-        open={editProject !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditProject(null);
-        }}
-        onUpdated={handleUpdated}
-      />
+      {canManage ? (
+        <ProjectCreateDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={handleCreated}
+        />
+      ) : null}
+      {canManage ? (
+        <ProjectEditDialog
+          project={editProject}
+          open={editProject !== null}
+          onOpenChange={(open) => {
+            if (!open) setEditProject(null);
+          }}
+          onUpdated={handleUpdated}
+        />
+      ) : null}
     </>
   );
 }
@@ -120,27 +130,34 @@ export function ZeroProjectsOnboarding() {
   const [createOpen, setCreateOpen] = useState(false);
   const { refetch } = useProjects();
   const router = useRouter();
+  const { user } = useAuth();
+  const canManage = user ? canManageProjects(user.role) : false;
 
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center gap-6 p-8">
       <div className="max-w-md space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Create your first project
+          {canManage ? "Create your first project" : "No projects yet"}
         </h1>
         <p className="text-muted-foreground">
-          Projects organize test cases with their own directory tree and
-          case-number prefix.
+          {canManage
+            ? "Projects organize test cases with their own directory tree and case-number prefix."
+            : "Ask an Admin to create a project before you can browse test cases."}
         </p>
       </div>
-      <Button onClick={() => setCreateOpen(true)}>Create project</Button>
-      <ProjectCreateDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={(project) => {
-          void refetch();
-          router.push(`/p/${project.prefix}`);
-        }}
-      />
+      {canManage ? (
+        <>
+          <Button onClick={() => setCreateOpen(true)}>Create project</Button>
+          <ProjectCreateDialog
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            onCreated={(project) => {
+              void refetch();
+              router.push(`/p/${project.prefix}`);
+            }}
+          />
+        </>
+      ) : null}
     </main>
   );
 }

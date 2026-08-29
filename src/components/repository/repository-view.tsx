@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ManagedDirectorySidebar } from "@/components/directories/managed-directory-sidebar";
+import { useAuth } from "@/components/auth/auth-context";
 import {
   CaseList,
   PaginationControls,
@@ -33,6 +34,11 @@ import { Input } from "@/components/ui/input";
 import { useAsyncData, useDebouncedValue } from "@/hooks/use-async-data";
 import { useAsyncErrorToast } from "@/components/ui/async-error-toast";
 import { ApiClientError, bulkTrash, getProjectTree, listTestCases, optionalBulkFilter } from "@/lib/api-client";
+import {
+  canBulkTrash,
+  canManageDirectories,
+  canWriteCases,
+} from "@/lib/auth/permissions";
 import type { BulkFilter, Project } from "@/lib/contracts";
 
 type SelectionScope =
@@ -45,6 +51,11 @@ type RepositoryViewProps = {
 
 export function RepositoryView({ project }: RepositoryViewProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const userRole = user?.role ?? "viewer";
+  const canWrite = canWriteCases(userRole);
+  const canSelect = canBulkTrash(userRole);
+  const canManageDirs = canManageDirectories(userRole);
   const searchParams = useSearchParams();
 
   const directoryParam = searchParams.get("dir");
@@ -294,6 +305,7 @@ export function RepositoryView({ project }: RepositoryViewProps) {
           selection={selection}
           onSelect={handleDirectorySelect}
           onMutated={handleMutated}
+          manageMode={canManageDirs}
         />
       ) : (
         <aside className="w-64 shrink-0 border-r bg-muted/20 p-3" />
@@ -313,16 +325,18 @@ export function RepositoryView({ project }: RepositoryViewProps) {
               aria-label="Search test cases"
             />
           </div>
-          <Button
-            variant={selectionMode ? "secondary" : "outline"}
-            onClick={() => {
-              if (selectionMode) exitSelectionMode();
-              else setSelectionMode(true);
-            }}
-          >
-            {selectionMode ? "Cancel" : "Select cases"}
-          </Button>
-          {!selectionMode ? (
+          {canSelect ? (
+            <Button
+              variant={selectionMode ? "secondary" : "outline"}
+              onClick={() => {
+                if (selectionMode) exitSelectionMode();
+                else setSelectionMode(true);
+              }}
+            >
+              {selectionMode ? "Cancel" : "Select cases"}
+            </Button>
+          ) : null}
+          {!selectionMode && canWrite ? (
             <Button asChild>
               <Link href={newCaseHref}>
                 <PlusIcon />
@@ -332,7 +346,7 @@ export function RepositoryView({ project }: RepositoryViewProps) {
           ) : null}
         </div>
 
-        {selectionMode && caseList && caseList.totalItems > 0 ? (
+        {selectionMode && canSelect && caseList && caseList.totalItems > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2 text-sm">
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-medium">{selectedCount} selected</span>
