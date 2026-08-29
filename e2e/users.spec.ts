@@ -9,13 +9,12 @@ import {
 } from "./helpers";
 
 test.describe("Users admin", () => {
-  const testMemberEmail = `e2e-member-${Date.now()}@opentcm.local`;
-
   test.beforeEach(async ({ request }) => {
     await loginAsAdmin(request);
   });
 
   test("Admin creates Member and deactivates them", async ({ page }) => {
+    const testMemberEmail = `e2e-member-${Date.now()}@opentcm.local`;
     await loginViaPage(page);
 
     await page.goto("/users");
@@ -33,7 +32,7 @@ test.describe("Users admin", () => {
     await expect(row.getByRole("cell", { name: "Member", exact: true })).toBeVisible();
 
     await row.getByRole("button", { name: "Deactivate" }).click();
-    await page.getByRole("button", { name: "Deactivate" }).last().click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Deactivate" }).click();
     await expect(row.getByText("Deactivated")).toBeVisible();
 
     await page.getByRole("button", { name: "Log out" }).click();
@@ -42,9 +41,9 @@ test.describe("Users admin", () => {
     await page.getByLabel("Email").fill(testMemberEmail);
     await page.getByLabel("Password").fill("e2e-member-pass");
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("alert")).toHaveText(
-      "This account has been deactivated.",
-    );
+    await expect(
+      page.getByText("This account has been deactivated."),
+    ).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
   });
 
@@ -122,14 +121,17 @@ test.describe("Users admin", () => {
       await expect(row.getByRole("button", { name: "Deactivate" })).toBeDisabled();
 
       await row.getByRole("button", { name: "Change role" }).click();
-      await page.getByLabel("Role").selectOption("member");
+      const roleDialog = page.getByRole("dialog", { name: "Change role" });
+      await roleDialog.locator("#edit-role").selectOption("member");
       await expect(
-        page.getByText("Cannot deactivate or demote the last remaining Admin."),
+        roleDialog.getByText(
+          "Cannot deactivate or demote the last remaining Admin.",
+        ),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Save role" }),
+        roleDialog.getByRole("button", { name: "Save role" }),
       ).toBeDisabled();
-      await page.getByRole("button", { name: "Cancel" }).click();
+      await roleDialog.getByRole("button", { name: "Cancel" }).click();
     } finally {
       for (const other of others) {
         await request.patch(`/api/v1/users/${other.id}`, {
