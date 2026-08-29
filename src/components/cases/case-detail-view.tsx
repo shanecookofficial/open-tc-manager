@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CaseBreadcrumb } from "@/components/cases/case-breadcrumb";
+import { CaseHistoryPanel } from "@/components/cases/case-history-panel";
 import { MoveCaseDialog } from "@/components/cases/move-case-dialog";
 import { Markdown } from "@/components/markdown";
 import {
@@ -29,20 +30,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ApiClientError, deleteTestCase } from "@/lib/api-client";
+import { canWriteCases } from "@/lib/auth/permissions";
 import { formatDateTime } from "@/lib/format-date";
-import type { Project, TestCase } from "@/lib/contracts";
+import type { Project, TestCase, UserRole } from "@/lib/contracts";
 
 type CaseDetailViewProps = {
   testCase: TestCase;
   project: Project;
+  userRole: UserRole;
 };
 
-export function CaseDetailView({ testCase, project }: CaseDetailViewProps) {
+export function CaseDetailView({ testCase, project, userRole }: CaseDetailViewProps) {
   const router = useRouter();
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentCase, setCurrentCase] = useState(testCase);
+
+  const canWrite = canWriteCases(userRole);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -94,7 +99,7 @@ export function CaseDetailView({ testCase, project }: CaseDetailViewProps) {
             {currentCase.title}
           </h1>
         </div>
-        {!currentCase.deletedAt ? (
+        {!currentCase.deletedAt && canWrite ? (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
               <Link href={`/cases/${currentCase.displayNumber}/edit`}>
@@ -165,6 +170,12 @@ export function CaseDetailView({ testCase, project }: CaseDetailViewProps) {
           </Table>
         )}
       </section>
+
+      <CaseHistoryPanel
+        testCase={currentCase}
+        userRole={userRole}
+        onReverted={setCurrentCase}
+      />
 
       <MoveCaseDialog
         testCase={currentCase}

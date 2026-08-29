@@ -89,7 +89,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A4-3 · History panel + revert
 
-- **Owner:** Composer · **Status:** todo · **Needs:** A4-1, A3-2
+- **Owner:** Composer · **Status:** done · **Needs:** A4-1, A3-2
 - Case detail History: A→B→C→A readable; Revert confirm; Viewers see history
   without Revert. Hide write chrome for Viewer.
 - **Accept:** Playwright Member: edit twice (A→B→C), revert to first snapshot,

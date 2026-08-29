@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { CaseDetailView } from "@/components/cases/case-detail-view";
+import { CaseDetailPageClient } from "@/components/cases/case-detail-page-client";
 import { AppHeader } from "@/components/layout/app-header";
 import { getTestCaseByDisplayNumber } from "@/lib/api/test-cases";
 import { listProjects } from "@/lib/api/projects";
@@ -29,7 +29,7 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
   return (
     <>
       <AppHeader currentPrefix={project.prefix} />
-      <CaseDetailView testCase={testCase} project={project} />
+      <CaseDetailPageClient testCase={testCase} project={project} />
     </>
   );
 }
