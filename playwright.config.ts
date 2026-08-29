@@ -22,8 +22,9 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
-    // First-boot Admin when the users table is empty (bootstrap in instrumentation).
-    // A5-1 also seeds admin@opentcm.local via db:seed — bootstrap is a no-op then.
+    // db:seed creates demo users when the users table is empty (admin@opentcm.local
+    // and Member/Viewer). BOOTSTRAP_* is a fallback if seed did not run; bootstrap
+    // is a no-op once any user exists.
     env: {
       BOOTSTRAP_ADMIN_EMAIL: "admin@opentcm.local",
       BOOTSTRAP_ADMIN_PASSWORD: "opentcm-admin",

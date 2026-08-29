@@ -30,7 +30,7 @@ test.describe("Users admin", () => {
 
     const row = page.getByRole("row", { name: new RegExp(testMemberEmail) });
     await expect(row).toBeVisible();
-    await expect(row.getByText("Member")).toBeVisible();
+    await expect(row.getByRole("cell", { name: "Member", exact: true })).toBeVisible();
 
     await row.getByRole("button", { name: "Deactivate" }).click();
     await page.getByRole("button", { name: "Deactivate" }).last().click();

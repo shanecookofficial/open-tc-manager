@@ -1,21 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-
-import { useAuth } from "@/components/auth/auth-context";
 import { UsersAdminView } from "@/components/users/users-admin-view";
+import { useAuth } from "@/components/auth/auth-context";
 import { canManageUsers } from "@/lib/auth/permissions";
 
 export function UsersPageClient() {
   const { user, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && user && !canManageUsers(user.role)) {
-      router.replace("/");
-    }
-  }, [isLoading, user, router]);
 
   if (isLoading) {
     return (

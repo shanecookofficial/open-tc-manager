@@ -109,7 +109,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A5-1 · Seed demo users + docs
 
-- **Owner:** Composer · **Status:** todo · **Needs:** A1-1
+- **Owner:** Composer · **Status:** done · **Needs:** A1-1
 - Idempotent seed users (e.g. admin@opentcm.local / documented password) **only
   if no users exist** OR skip when bootstrap env already created Admin — pick one
   strategy, document it, do not duplicate Admins. SETUP.md, USER_GUIDE.md,

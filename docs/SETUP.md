@@ -5,10 +5,10 @@ production. For day-to-day development, see [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 > **Security — read before exposing OpenTCM to a network**
 >
-> OpenTCM v1 has **no authentication or authorization**. Anyone who can reach the web
-> UI or API can read, create, edit, and delete all projects and test cases. Deploy only
-> on a **closed or trusted network** (VPN, office LAN, SSH tunnel). Do not publish
-> OpenTCM directly to the public internet without adding your own access controls.
+> OpenTCM v1.1 adds **email + password authentication** and instance-wide roles.
+> Deploy on a **closed or trusted network** (VPN, office LAN, SSH tunnel). Basic
+> auth is not a substitute for network isolation — do not publish OpenTCM directly
+> to the public internet without additional access controls.
 
 ---
 
@@ -37,6 +37,9 @@ Edit `.env` if you want non-default credentials or demo data on first boot:
 | `APP_PORT`          | `3000`                                     | Host port mapped to the app container                                 |
 | `OPENTCM_IMAGE`     | `ghcr.io/shanecookofficial/opentcm:latest` | Image reference (used when not building locally)                      |
 | `SEED_DEMO_DATA`    | `false`                                    | Set to `true` on **first boot only** to load the WEB/API demo dataset |
+| `BOOTSTRAP_ADMIN_EMAIL` | unset (optional)                         | First Admin email when `users` is empty (see §8)                      |
+| `BOOTSTRAP_ADMIN_PASSWORD` | unset (optional)                      | First Admin password (unset after first boot in production)           |
+| `HTTPS`             | `false`                                    | Set `true` when served over HTTPS (Secure session cookie)             |
 
 `docker-compose.prod.yml` reads these variables from `.env` in the project directory
 (Compose loads `.env` automatically). It **constructs** `DATABASE_URL` for the app
@@ -66,8 +69,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 Open **http://localhost:3000** (or `http://localhost:<APP_PORT>` if you changed it).
 
-If you did **not** seed demo data, that URL shows **Create your first project**.
-If you seeded, it redirects into the first project (by name).
+You will be redirected to **Sign in**. Use the bootstrap Admin from §8, a user
+created by `npm run db:seed`, or an account your Admin provisioned.
+
+If you did **not** seed demo data, after sign-in the home URL shows **Create your
+first project** (Admins only). If you seeded, it redirects into the first project.
 
 The `app` service waits until Postgres passes its healthcheck
 (`pg_isready` on the `postgres` service), then the entrypoint:
@@ -426,6 +432,43 @@ that already has OpenTCM tables (`ERROR: schema "drizzle" already exists`).
 | Blank styles in standalone mode                      | Use `npm run start:standalone` (copies `.next/static`); do not run `server.js` without static assets.                                                                                     |
 | `/p/WEB` is 404                                      | Seed was skipped (or prefix is not `WEB`). Open `/` and create a project, or run `npm run db:seed`.                                                                                       |
 | `systemctl: System has not been booted with systemd` | Start Postgres without systemd; the packages can still be installed.                                                                                                                      |
+
+---
+
+## Part C — First Admin, sign-in, and users (v1.1)
+
+### Bootstrap Admin (empty database)
+
+When the `users` table is empty, OpenTCM can create one Admin from environment
+variables (also used by Docker / `start:standalone` on boot):
+
+```
+BOOTSTRAP_ADMIN_EMAIL=ada@opentcm.local
+BOOTSTRAP_ADMIN_PASSWORD=change-me-in-production
+```
+
+Bootstrap runs once — if **any** user already exists (seed, prior bootstrap, or
+manual insert), it is a no-op. You may unset `BOOTSTRAP_ADMIN_PASSWORD` after
+first boot; leaving it set does not create a duplicate Admin.
+
+### Demo users from seed (development / e2e)
+
+`npm run db:seed` (and `SEED_DEMO_DATA` in Docker) also provisions demo accounts
+when appropriate:
+
+| When | Users created |
+| --- | --- |
+| `users` table empty | Admin, Member, Viewer (documented passwords in `DEVELOPMENT.md`) |
+| Demo emails missing | Each of `admin@`, `member@`, `viewer@` inserted when absent — never overwrites |
+
+### Sign in
+
+1. Open `/login` (unauthenticated visits to any other page redirect here).
+2. Enter email and password.
+3. After success you land on the repository (or the `next=` path you requested).
+
+Admins open **Users** in the header to create Member/Viewer accounts and manage
+roles. See [`USER_GUIDE.md`](USER_GUIDE.md) for roles and case history.
 
 ---
 

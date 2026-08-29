@@ -7,6 +7,9 @@
  *   constraint the API enforces for sibling names.
  * - Test cases: upsert by `(project_id, case_number)`. Steps are replaced only
  *   when the case row is newly inserted (re-runs never duplicate or mutate cases).
+ * - Users: insert each demo email when missing (`admin@`, `member@`, `viewer@`).
+ *   Never overwrites an existing row; other Admins (bootstrap, integration tests)
+ *   can coexist with the demo `admin@opentcm.local` account.
  * - After all inserts, `next_case_number` is set to `max(case_number) + 1` per
  *   project so the counter stays consistent with seeded data.
  *
@@ -19,20 +22,46 @@ import { pathToFileURL } from "node:url";
 
 import { and, eq, isNull, max, sql } from "drizzle-orm";
 
+import { hashPassword } from "@/lib/api/password";
 import { createFixtures } from "@/lib/contracts/fixtures";
 import { isUniqueViolation } from "@/lib/api/pg-errors";
 
 import { db, pool } from "./index";
-import { directories, projects, testCases, testSteps } from "./schema";
+import { directories, projects, testCases, testSteps, users } from "./schema";
+
+/** Documented demo passwords — see docs/DEVELOPMENT.md (not in SETUP walkthrough). */
+export const SEED_DEMO_USERS = {
+  admin: {
+    email: "admin@opentcm.local",
+    password: "opentcm-admin",
+    displayName: "Admin",
+    role: "admin" as const,
+  },
+  member: {
+    email: "member@opentcm.local",
+    password: "opentcm-member",
+    displayName: "Member",
+    role: "member" as const,
+  },
+  viewer: {
+    email: "viewer@opentcm.local",
+    password: "opentcm-viewer",
+    displayName: "Viewer",
+    role: "viewer" as const,
+  },
+};
 
 export type SeedResult = {
   insertedCases: number;
   skippedCases: number;
+  insertedUsers: number;
+  skippedUsers: number;
   counts: {
     projects: number;
     directories: number;
     test_cases: number;
     test_steps: number;
+    users: number;
   };
 };
 
@@ -87,7 +116,40 @@ async function syncNextCaseNumber(projectId: number) {
     .where(eq(projects.id, projectId));
 }
 
+async function seedDemoUsers(): Promise<{ inserted: number; skipped: number }> {
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const demoUser of [
+    SEED_DEMO_USERS.admin,
+    SEED_DEMO_USERS.member,
+    SEED_DEMO_USERS.viewer,
+  ]) {
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, demoUser.email))
+      .limit(1);
+
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+
+    await db.insert(users).values({
+      email: demoUser.email,
+      displayName: demoUser.displayName,
+      passwordHash: await hashPassword(demoUser.password),
+      role: demoUser.role,
+    });
+    inserted += 1;
+  }
+
+  return { inserted, skipped };
+}
+
 export async function runSeed(): Promise<SeedResult> {
+  const userSeed = await seedDemoUsers();
   const fixtures = createFixtures();
 
   const projectIdByFixtureId = new Map<number, number>();
@@ -242,7 +304,8 @@ export async function runSeed(): Promise<SeedResult> {
       (SELECT count(*)::int FROM projects) AS projects,
       (SELECT count(*)::int FROM directories) AS directories,
       (SELECT count(*)::int FROM test_cases) AS test_cases,
-      (SELECT count(*)::int FROM test_steps) AS test_steps
+      (SELECT count(*)::int FROM test_steps) AS test_steps,
+      (SELECT count(*)::int FROM users) AS users
   `);
 
   const counts = countResult.rows[0] as {
@@ -250,9 +313,16 @@ export async function runSeed(): Promise<SeedResult> {
     directories: number;
     test_cases: number;
     test_steps: number;
+    users: number;
   };
 
-  return { insertedCases, skippedCases, counts };
+  return {
+    insertedCases,
+    skippedCases,
+    insertedUsers: userSeed.inserted,
+    skippedUsers: userSeed.skipped,
+    counts,
+  };
 }
 
 function isDirectRun(): boolean {
@@ -271,7 +341,7 @@ if (isDirectRun()) {
   runSeed()
     .then((result) => {
       console.log(
-        `Seed complete (inserted ${result.insertedCases} case(s), ${result.skippedCases} already present). Row counts:`,
+        `Seed complete (inserted ${result.insertedCases} case(s), ${result.skippedCases} already present; ${result.insertedUsers} user(s), ${result.skippedUsers} user(s) skipped). Row counts:`,
         result.counts,
       );
     })

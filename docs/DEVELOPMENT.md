@@ -29,9 +29,9 @@ docker compose exec app npm run db:migrate
 docker compose exec app npm run db:seed   # optional: WEB/API demo data
 ```
 
-- **App:** http://localhost:3000 — lands in the seeded demo project, or the
-  "create your first project" screen if you skipped the seed. OpenTCM has no
-  authentication (closed/trusted networks only).
+- **App:** http://localhost:3000 — sign in with a seeded or bootstrap Admin, then
+  land in the demo project or the "create your first project" screen (Admins).
+  OpenTCM requires authentication (closed/trusted networks).
 - **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
 
 The `app` service waits for Postgres to pass its healthcheck before starting.
@@ -109,6 +109,19 @@ The script inserts (or reuses) two projects — **Web App** (`WEB`) and **Paymen
 (`API`) — with the same names, prefixes, directory tree, and markdown-rich test cases
 as `src/lib/contracts/fixtures.ts`. Database ids differ from fixture ids; match rows by
 `prefix` and `displayNumber` (e.g. `WEB-11`).
+
+It also seeds **demo users** when the `users` table is empty:
+
+| Email | Role | Password (dev only) |
+| --- | --- | --- |
+| `admin@opentcm.local` | Admin | `opentcm-admin` |
+| `member@opentcm.local` | Member | `opentcm-member` |
+| `viewer@opentcm.local` | Viewer | `opentcm-viewer` |
+
+If bootstrap or another process already created a different Admin (e.g.
+`it-admin@opentcm.local` from integration tests), seed still adds
+`admin@opentcm.local` when that email is missing. It never overwrites existing
+rows or creates duplicate emails.
 
 **Strategy:** projects are keyed by `prefix`; directories by
 `(project_id, parent_id, name)`; test cases by `(project_id, case_number)`. A second run

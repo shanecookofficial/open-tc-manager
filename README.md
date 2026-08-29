@@ -28,8 +28,7 @@ see [RELEASING.md](RELEASING.md)).
 - **Directory management** — create, rename, move, and delete folders from the tree.
 - **Docker or bring-your-own Postgres** — production image with automatic migrations
   on startup.
-- **No authentication** — intended for closed/trusted networks only (see
-  [Security](#security)).
+- **Email + password authentication** with Admin / Member / Viewer roles (v1.1).
 
 ## Quickstart
 
@@ -44,10 +43,10 @@ cp .env.example .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Open http://localhost:3000 — **Create your first project** if you skipped seed;
-the WEB/API demo if you set `SEED_DEMO_DATA=true`.
+Open http://localhost:3000 — sign in (bootstrap or seed Admin), then **Create your
+first project** if you skipped seed; the WEB/API demo if you set `SEED_DEMO_DATA=true`.
 
-OpenTCM v1 has **no authentication**. Use it only on a closed or trusted network
+OpenTCM v1.1 requires sign-in. Use it only on a closed or trusted network
 ([Security](#security)).
 
 Full instructions (upgrades, backups, demo data, manual Postgres): **[docs/SETUP.md](docs/SETUP.md)**
@@ -90,9 +89,11 @@ troubleshooting.
 
 ## Security
 
-OpenTCM v1 has **no built-in authentication**. Anyone who can reach the application
-can read and modify all data. Deploy only on a **closed or trusted network**, or place
-it behind your own access controls (VPN, firewall, authenticated reverse proxy).
+OpenTCM v1.1 adds email + password authentication and instance-wide roles. Anyone
+who can reach the application can still read all projects and cases **after signing
+in** — roles limit write operations, not project visibility. Deploy only on a
+**closed or trusted network**, or place it behind your own access controls (VPN,
+firewall, authenticated reverse proxy).
 
 ## Roadmap (not in v1)
 

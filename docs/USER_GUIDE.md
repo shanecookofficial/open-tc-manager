@@ -121,15 +121,50 @@ Permanent deletion cannot be undone.
 
 ---
 
-## Security model (v1)
+## Roles (v1.1)
 
-OpenTCM v1 is designed for **trusted networks only**:
+| Capability | Viewer | Member | Admin |
+| --- | --- | --- | --- |
+| Read projects, cases, trash, **history** | yes | yes | yes |
+| Create / edit / move / trash / restore cases | no | yes | yes |
+| **Revert** to a history snapshot | no | yes | yes |
+| Directory create / rename / move / delete | no | yes | yes |
+| Bulk trash / restore | no | yes | yes |
+| Permanent purge | no | no | yes |
+| Create / edit projects (prefix) | no | no | yes |
+| Users admin | no | no | yes |
 
-- No login screen, sessions, or per-user permissions.
-- Anyone with network access can use the full UI and API.
+The UI hides actions your role cannot use; the API returns **403** if you call a
+forbidden endpoint directly.
 
-Deploy behind a VPN, firewall, or reverse proxy with authentication if the instance
-is not on a closed network. See the security note in [`SETUP.md`](SETUP.md).
+---
+
+## Case history and revert (v1.1)
+
+Every create, edit, move, trash, restore, and revert appends an event to the case
+**History** panel on the detail page (oldest → newest). Each row shows when it
+happened, who did it, the action, and a one-line summary. Expand **Snapshot** to
+see the full case state after that event.
+
+**Revert** (Member and Admin) restores a chosen snapshot as the new current state
+and appends a new event — the timeline is never rewritten.
+
+Example: if a case went **A → B → C** and you revert to the first event (state A),
+history becomes **A → B → C → A**. The case body matches A again; events A, B, and
+C remain in the list. Viewers see history but not the Revert button.
+
+Seeded WEB/API cases have **no** history until someone mutates them while signed in.
+
+---
+
+## Security model
+
+OpenTCM is designed for **trusted networks**:
+
+- Email + password sign-in with httpOnly session cookies.
+- Three instance-wide roles (no per-project ACLs in v1.1).
+- Deploy behind a VPN, firewall, or reverse proxy if the instance is not on a
+  closed network. See the security note in [`SETUP.md`](SETUP.md).
 
 ---
 

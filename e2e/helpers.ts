@@ -73,9 +73,15 @@ export async function loginViaPage(
     ? `/login?next=${encodeURIComponent(next)}`
     : "/login";
   await page.goto(loginPath);
-  await page.getByLabel("Email").fill(credentials.email);
-  await page.getByLabel("Password").fill(credentials.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+
+  if (page.url().includes("/login")) {
+    const email = page.getByLabel("Email");
+    await email.waitFor({ state: "visible" });
+    await email.fill(credentials.email);
+    await page.getByLabel("Password").fill(credentials.password);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL((url) => !url.pathname.startsWith("/login"));
+  }
 }
 
 export async function findProjectIdByPrefix(
