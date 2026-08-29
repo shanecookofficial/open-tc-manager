@@ -21,8 +21,17 @@ cp .env.example .env   # optional on first run; compose sets DATABASE_URL for th
 docker compose up
 ```
 
-- **App:** http://localhost:3000 — create a project or run `npm run db:seed` for the
-  WEB/API demo. OpenTCM has no authentication (closed/trusted networks only).
+On the **first run**, once both containers are up, apply migrations (and optionally
+load the demo data) from a second terminal — the dev stack does not run them for you:
+
+```bash
+docker compose exec app npm run db:migrate
+docker compose exec app npm run db:seed   # optional: WEB/API demo data
+```
+
+- **App:** http://localhost:3000 — lands in the seeded demo project, or the
+  "create your first project" screen if you skipped the seed. OpenTCM has no
+  authentication (closed/trusted networks only).
 - **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
 
 The `app` service waits for Postgres to pass its healthcheck before starting.
