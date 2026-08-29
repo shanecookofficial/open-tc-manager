@@ -82,7 +82,7 @@ Decisions: `docs/DECISIONS.md`.
 
 ### A4-2 · Users admin (Admin)
 
-- **Owner:** Composer · **Status:** todo · **Needs:** A4-1, A2-2
+- **Owner:** Composer · **Status:** done · **Needs:** A4-1, A2-2
 - Users table and dialogs per PLAN-v1.1 §8. Hide Users link for non-Admin.
 - **Accept:** Playwright as Admin: create Member, deactivate, Member cannot open
   `/users` (redirect or 403 page).
