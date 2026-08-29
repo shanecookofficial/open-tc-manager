@@ -1,0 +1,45 @@
+# Production Compose stack — pre-built app image + PostgreSQL 16.
+# Quickstart: cp .env.example .env  &&  docker compose -f docker-compose.prod.yml up -d
+# See docs/SETUP.md for upgrades, backups, and SEED_DEMO_DATA.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-opentcm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opentcm}
+      POSTGRES_DB: ${POSTGRES_DB:-opentcm}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-opentcm} -d ${POSTGRES_DB:-opentcm}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${OPENTCM_IMAGE:-ghcr.io/shanecookofficial/opentcm:latest}
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-opentcm}:${POSTGRES_PASSWORD:-opentcm}@postgres:5432/${POSTGRES_DB:-opentcm}
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
