@@ -280,3 +280,16 @@ detail is `docs/PLAN-v1.1.md`. Summary:
    the case and its events (no tombstone UI). Seed cases are not backfilled with
    fake authors.
 7. **v0.1.0 merge stays deferred**; v1.1 work lives on its own branch/PR.
+
+---
+
+**2026-08-29 — v1.1 schema mapping (A1-1).** PLAN-v1.1 §6 is in
+`src/lib/db/schema.ts` with forward-only `drizzle/0001_auth_history.sql` (0000
+is untouched). IDs stay `bigint({ mode: "number" })`. `test_case_events.snapshot`
+is JSONB typed as `{ title, description, directoryId, steps, deletedAt }`.
+`users.email` has both `UNIQUE(email)` (plan) and a unique index on
+`lower(email)` so mixed-case duplicates fail even if a writer skipped
+lowercasing. Event `actor_id` is `ON DELETE RESTRICT`; `test_case_id` is
+`ON DELETE CASCADE` (purge removes history with the case). Sessions cascade
+with the user. `reverted_event_id` is a self-FK `ON DELETE RESTRICT`; same-case
+membership is still application-enforced.

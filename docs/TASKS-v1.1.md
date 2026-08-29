@@ -11,7 +11,7 @@ Decisions: `docs/DECISIONS.md`.
 ## A1 — Contract (freeze before A2/A4 fan-out)
 
 ### A1-1 · Schema & migration `0001`
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** —
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** —
 - Drizzle tables `users`, `sessions`, `test_case_events` exactly per PLAN-v1.1 §6.
   Forward-only SQL migration (do **not** edit `0000_init.sql`).
 - **Accept:** migration applies on top of v0.1.0 schema; uniqueness of lowercased

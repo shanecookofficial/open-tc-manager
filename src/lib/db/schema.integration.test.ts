@@ -6,6 +6,16 @@ import { pool } from "@/lib/db";
 const UNIQUE_VIOLATION = "23505";
 /** Postgres SQLSTATE for check_violation. */
 const CHECK_VIOLATION = "23514";
+/** Postgres SQLSTATE for foreign_key_violation (RESTRICT and missing refs). */
+const FOREIGN_KEY_VIOLATION = "23503";
+
+const EMPTY_SNAPSHOT = {
+  title: "A case",
+  description: null,
+  directoryId: null,
+  steps: [] as { action: string; expectedResult: string | null }[],
+  deletedAt: null,
+};
 
 async function insertProject(
   name = "Web App",
@@ -58,16 +68,58 @@ async function insertStep(
   return Number(result.rows[0].id);
 }
 
+async function insertUser(
+  email: string,
+  displayName = "Ada Lovelace",
+  role = "member",
+  passwordHash = "placeholder-hash",
+): Promise<number> {
+  const result = await pool.query<{ id: string }>(
+    `INSERT INTO users (email, display_name, password_hash, role)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id`,
+    [email, displayName, passwordHash, role],
+  );
+  return Number(result.rows[0].id);
+}
+
+async function insertEvent(
+  testCaseId: number,
+  actorId: number,
+  action = "created",
+  snapshot: typeof EMPTY_SNAPSHOT = EMPTY_SNAPSHOT,
+  actorEmail = "ada@opentcm.local",
+  actorDisplayName = "Ada Lovelace",
+  revertedEventId: number | null = null,
+): Promise<number> {
+  const result = await pool.query<{ id: string }>(
+    `INSERT INTO test_case_events
+       (test_case_id, actor_id, actor_email, actor_display_name, action, reverted_event_id, snapshot)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+     RETURNING id`,
+    [
+      testCaseId,
+      actorId,
+      actorEmail,
+      actorDisplayName,
+      action,
+      revertedEventId,
+      JSON.stringify(snapshot),
+    ],
+  );
+  return Number(result.rows[0].id);
+}
+
 describe("schema constraints", () => {
   beforeEach(async () => {
     await pool.query(
-      `TRUNCATE TABLE test_steps, test_cases, directories, projects RESTART IDENTITY CASCADE`,
+      `TRUNCATE TABLE test_case_events, sessions, users, test_steps, test_cases, directories, projects RESTART IDENTITY CASCADE`,
     );
   });
 
   afterAll(async () => {
     await pool.query(
-      `TRUNCATE TABLE test_steps, test_cases, directories, projects RESTART IDENTITY CASCADE`,
+      `TRUNCATE TABLE test_case_events, sessions, users, test_steps, test_cases, directories, projects RESTART IDENTITY CASCADE`,
     );
   });
 
@@ -270,6 +322,101 @@ describe("schema constraints", () => {
         `SELECT count(*)::int AS count FROM test_steps`,
       );
       expect(steps.rows[0].count).toBe(1);
+    });
+  });
+
+  describe("users.email uniqueness (lowercase)", () => {
+    it("rejects a duplicate lowercased email", async () => {
+      await insertUser("ada@opentcm.local");
+      await expect(insertUser("ada@opentcm.local")).rejects.toMatchObject({
+        code: UNIQUE_VIOLATION,
+      });
+    });
+
+    it("rejects the same email with different casing via lower(email) unique index", async () => {
+      await insertUser("ada@opentcm.local");
+      await expect(insertUser("Ada@Opentcm.Local")).rejects.toMatchObject({
+        code: UNIQUE_VIOLATION,
+      });
+      await expect(insertUser("ADA@OPENTCM.LOCAL")).rejects.toMatchObject({
+        code: UNIQUE_VIOLATION,
+      });
+    });
+
+    it("allows two distinct lowercased emails", async () => {
+      await insertUser("ada@opentcm.local", "Ada");
+      await insertUser("charles@opentcm.local", "Charles");
+    });
+  });
+
+  describe("users CHECKs", () => {
+    it("rejects an unknown role", async () => {
+      await expect(
+        insertUser("ada@opentcm.local", "Ada", "owner"),
+      ).rejects.toMatchObject({ code: CHECK_VIOLATION });
+    });
+
+    it("rejects a whitespace-only display name", async () => {
+      await expect(
+        insertUser("ada@opentcm.local", "   "),
+      ).rejects.toMatchObject({ code: CHECK_VIOLATION });
+    });
+  });
+
+  describe("test_case_events foreign keys", () => {
+    it("RESTRICT: deleting a user who authored events is rejected", async () => {
+      const projectId = await insertProject();
+      const caseId = await insertCase(projectId, 1);
+      const actorId = await insertUser("ada@opentcm.local");
+      await insertEvent(caseId, actorId);
+
+      await expect(
+        pool.query(`DELETE FROM users WHERE id = $1`, [actorId]),
+      ).rejects.toMatchObject({ code: FOREIGN_KEY_VIOLATION });
+
+      const leftover = await pool.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM test_case_events`,
+      );
+      expect(leftover.rows[0].n).toBe(1);
+      const usersLeft = await pool.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM users`,
+      );
+      expect(usersLeft.rows[0].n).toBe(1);
+    });
+
+    it("CASCADE: deleting a case removes its events; the actor user remains", async () => {
+      const projectId = await insertProject();
+      const caseId = await insertCase(projectId, 1);
+      const actorId = await insertUser("ada@opentcm.local");
+      await insertEvent(caseId, actorId);
+
+      await pool.query(`DELETE FROM test_cases WHERE id = $1`, [caseId]);
+
+      const events = await pool.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM test_case_events`,
+      );
+      expect(events.rows[0].n).toBe(0);
+      const usersLeft = await pool.query<{ id: string }>(
+        `SELECT id FROM users WHERE id = $1`,
+        [actorId],
+      );
+      expect(usersLeft.rows).toHaveLength(1);
+    });
+
+    it("CASCADE: deleting a user without events still removes their sessions", async () => {
+      const actorId = await insertUser("ada@opentcm.local");
+      await pool.query(
+        `INSERT INTO sessions (user_id, token_hash, expires_at)
+         VALUES ($1, $2, now() + interval '7 days')`,
+        [actorId, "token-hash-1"],
+      );
+
+      await pool.query(`DELETE FROM users WHERE id = $1`, [actorId]);
+
+      const sessions = await pool.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM sessions`,
+      );
+      expect(sessions.rows[0].n).toBe(0);
     });
   });
 });
