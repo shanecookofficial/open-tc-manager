@@ -3,6 +3,7 @@ import type {
   Project as ProjectRow,
   TestCase as TestCaseRow,
   TestStep as TestStepRow,
+  User as UserRow,
 } from "@/lib/db/schema";
 import type {
   Directory,
@@ -11,6 +12,8 @@ import type {
   TestCase,
   TestCaseSummary,
   TestStep,
+  User,
+  UserRole,
 } from "@/lib/contracts";
 
 export function toIso(date: Date): string {
@@ -73,6 +76,18 @@ export function serializeSummary(
     title: row.title,
     stepCount,
     deletedAt: row.deletedAt ? toIso(row.deletedAt) : null,
+    createdAt: toIso(row.createdAt),
+    updatedAt: toIso(row.updatedAt),
+  };
+}
+
+export function serializeUser(row: UserRow): User {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.displayName,
+    role: row.role as UserRole,
+    deactivatedAt: row.deactivatedAt ? toIso(row.deactivatedAt) : null,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
   };

@@ -13,6 +13,6 @@ export function created(data: unknown, location: string): Response {
   });
 }
 
-export function noContent(): Response {
-  return new Response(null, { status: 204 });
+export function noContent(headers?: HeadersInit): Response {
+  return new Response(null, { status: 204, headers });
 }

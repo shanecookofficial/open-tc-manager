@@ -13,6 +13,8 @@ type Schemas<TParams, TQuery, TBody> = {
   params?: z.ZodType<TParams>;
   query?: z.ZodType<TQuery>;
   body?: z.ZodType<TBody>;
+  /** Empty body is treated as `{}` and then parsed with `body`. */
+  bodyOptional?: boolean;
 };
 
 function parseSchema<T>(schema: z.ZodType<T>, data: unknown): T {
@@ -42,9 +44,13 @@ export function queryRecord(request: Request): Record<string, string> {
 async function parseBody<T>(
   request: Request,
   schema: z.ZodType<T>,
+  optional: boolean,
 ): Promise<T> {
   const text = await request.text();
   if (text.trim() === "") {
+    if (optional) {
+      return parseSchema(schema, {});
+    }
     throw new ApiError("VALIDATION_ERROR", "Request body is required");
   }
   let raw: unknown;
@@ -83,7 +89,7 @@ export function apiHandler<
         ? parseSchema(schemas.query, queryRecord(request))
         : (undefined as TQuery);
       const body = schemas.body
-        ? await parseBody(request, schemas.body)
+        ? await parseBody(request, schemas.body, schemas.bodyOptional === true)
         : (undefined as TBody);
 
       return await handler({ request, params, query, body });

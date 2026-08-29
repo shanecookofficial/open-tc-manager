@@ -315,3 +315,22 @@ Choices worth not rediscovering:
   `eventId` is 404; wrong-case `eventId` is 409 CONFLICT.
 - Fixtures: Ada/Charles/Grace/retired users; WEB-1 events whose snapshots
   are A, B, C, A (`revertedEventId` of the fourth equals the first id).
+
+---
+
+**2026-08-29 — v1.1 auth API (A2-1).** Login/session/me/password/bootstrap:
+
+- Password hashes are Argon2id via the `argon2` package (native memory-hard
+  hash; OWASP m=19456 KiB, t=2, p=1). No plaintext, no reversible encryption.
+- Cookie `opentcm_session` is an opaque 32-byte base64url token; `sessions`
+  stores SHA-256 hex of that value. 7-day sliding `Max-Age`. `Secure` only
+  when `HTTPS=true`.
+- Bootstrap Admin (`BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`,
+  display name `"Admin"`) runs under a transaction advisory lock from
+  `instrumentation.ts` and again at the start of login, **only** when
+  `users` is empty. Missing env is a no-op; invalid env throws.
+- Deactivated users: correct password on login is `403 USER_DEACTIVATED`
+  (no session). An existing cookie whose user is later deactivated is
+  `401 UNAUTHENTICATED` and the session row is deleted.
+- `POST /auth/password` does not invalidate other sessions. Admins set
+  someone else's password in A2-2 via `PATCH /users/:id`.
