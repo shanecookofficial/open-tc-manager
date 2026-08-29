@@ -266,12 +266,15 @@ Dependency notation: a task may start only when everything in **Needs** is `done
 
 ### M5-3 · Release v0.1.0
 
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** M4-3, M5-2
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** M4-3, M5-2
 - CHANGELOG, CONTRIBUTING (points contributors at the playbook), issue templates, tag
   `v0.1.0`, verify published image, roadmap section in README naming the future themes
   in the product owner's priority order (users + change history, results reporting,
   step-text search, import/export, version control) as explicitly out of v1.
 - **Accept:** tagged release installable from published artifacts by docs alone.
+- _Tag is not created in this PR (tagging triggers GHCR publish). Maintainer runs
+  `git tag v0.1.0 <merge-commit> && git push origin v0.1.0` after merge; see
+  `RELEASING.md`. README roadmap verified; `package.json` version `0.1.0`._
 
 ---
 

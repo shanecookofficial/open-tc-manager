@@ -5,7 +5,11 @@ application for authoring and organizing software test cases. Store structured t
 steps with markdown descriptions, organize work in nested directories per project, and
 manage lifecycle with a safe trash workflow — all backed by PostgreSQL.
 
-MIT licensed · [Setup guide](docs/SETUP.md) · [User guide](docs/USER_GUIDE.md)
+MIT licensed · [Setup guide](docs/SETUP.md) · [User guide](docs/USER_GUIDE.md) ·
+[Changelog](CHANGELOG.md)
+
+**Current version: v0.1.0** (pending the maintainer `v0.1.0` git tag after merge;
+see [RELEASING.md](RELEASING.md)).
 
 ![Repository view](docs/images/repository.png)
 
@@ -62,23 +66,26 @@ npm run dev
 See **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for scripts, testing, and
 troubleshooting.
 
-| Command | Purpose |
-| --- | --- |
-| `npm run test` | Unit tests |
-| `npm run test:integration` | API integration tests (requires Postgres) |
-| `npm run test:e2e` | Playwright end-to-end tests |
-| `npm run lint` / `npm run typecheck` | Code quality |
+| Command                              | Purpose                                   |
+| ------------------------------------ | ----------------------------------------- |
+| `npm run test`                       | Unit tests                                |
+| `npm run test:integration`           | API integration tests (requires Postgres) |
+| `npm run test:e2e`                   | Playwright end-to-end tests               |
+| `npm run lint` / `npm run typecheck` | Code quality                              |
 
 ## Documentation
 
-| Doc | Audience |
-| --- | --- |
-| [SETUP.md](docs/SETUP.md) | Install and operate OpenTCM |
-| [USER_GUIDE.md](docs/USER_GUIDE.md) | Day-to-day usage |
-| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Contributors and local dev |
-| [API.md](docs/API.md) | HTTP API contract |
-| [PLAN.md](docs/PLAN.md) | Product scope and architecture |
-| [TASKS.md](docs/TASKS.md) | Implementation task ledger |
+| Doc                                   | Audience                       |
+| ------------------------------------- | ------------------------------ |
+| [SETUP.md](docs/SETUP.md)             | Install and operate OpenTCM    |
+| [USER_GUIDE.md](docs/USER_GUIDE.md)   | Day-to-day usage               |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Contributors and local dev     |
+| [CONTRIBUTING.md](CONTRIBUTING.md)    | How to contribute              |
+| [RELEASING.md](RELEASING.md)          | How maintainers tag a release  |
+| [CHANGELOG.md](CHANGELOG.md)          | Released and pending changes   |
+| [API.md](docs/API.md)                 | HTTP API contract              |
+| [PLAN.md](docs/PLAN.md)               | Product scope and architecture |
+| [TASKS.md](docs/TASKS.md)             | Implementation task ledger     |
 
 ## Security
 
@@ -98,8 +105,8 @@ Future themes, in product-owner priority order:
 
 ## Screenshots
 
-| Repository | Case detail (markdown) | Trash |
-| --- | --- | --- |
+| Repository                                | Case detail (markdown)                      | Trash                           |
+| ----------------------------------------- | ------------------------------------------- | ------------------------------- |
 | ![Repository](docs/images/repository.png) | ![Case detail](docs/images/case-detail.png) | ![Trash](docs/images/trash.png) |
 
 ## License

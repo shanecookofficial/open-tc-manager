@@ -240,3 +240,14 @@ and does not crash.
 `directoryId` (null after folder delete). The UI now says "restored to project
 root" whenever `restored.directoryId === null`; the "original folder no longer
 exists" phrase is deferred to v1.1 per the API-owner note above.
+
+---
+
+**2026-08-29 — v0.1.0 tagging is maintainer-side (M5-3).** The release-prep PR
+does **not** create git tag `v0.1.0`. Pushing that tag triggers
+`.github/workflows/docker.yml`, which publishes
+`ghcr.io/shanecookofficial/opentcm:latest` and `:v0.1.0` (plus `:0.1.0` /
+`:0.1`). After merge: `git tag v0.1.0 <merge-commit> && git push origin v0.1.0`.
+Details in `RELEASING.md`. CI's required check remains lint/typecheck/unit/
+integration/build; e2e is required in `CONTRIBUTING.md` before merge but is not
+an Actions check (M0-3 scoped CI that way; Playwright stays local).

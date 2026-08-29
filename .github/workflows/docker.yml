@@ -30,10 +30,15 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/shanecookofficial/opentcm
+          # A git tag v0.1.0 publishes :latest, :v0.1.0, :0.1.0, and :0.1.
+          # docker-compose.prod.yml defaults to :latest (see RELEASING.md).
+          flavor: |
+            latest=auto
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
+            type=semver,pattern=v{{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=
 

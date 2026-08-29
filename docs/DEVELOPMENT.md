@@ -5,7 +5,7 @@ use the same environment variables; only how Postgres is started differs.
 
 ## Prerequisites
 
-- **Node.js 22+** and **npm 10+** (see `package.json` engines if added later).
+- **Node.js 22+** and **npm 10+** (see `engines` in `package.json`).
 - **Git** clone of this repository.
 
 For the Docker path you also need **Docker** and **Docker Compose v2**.
@@ -21,7 +21,8 @@ cp .env.example .env   # optional on first run; compose sets DATABASE_URL for th
 docker compose up
 ```
 
-- **App:** http://localhost:3000 — placeholder home page (full UI arrives in M3).
+- **App:** http://localhost:3000 — create a project or run `npm run db:seed` for the
+  WEB/API demo. OpenTCM has no authentication (closed/trusted networks only).
 - **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
 
 The `app` service waits for Postgres to pass its healthcheck before starting.
@@ -120,18 +121,21 @@ psql "$DATABASE_URL" -c "SELECT count(*) FROM test_cases"
 
 ## npm scripts
 
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Start Next.js in development mode |
-| `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript (`tsc --noEmit`) |
-| `npm run test` | Vitest unit tests (does not require Postgres) |
-| `npm run test:integration` | Constraint tests against a live Postgres (`DATABASE_URL`) |
-| `npm run db:generate` | Generate a SQL migration from `src/lib/db/schema.ts` |
-| `npm run db:migrate` | Apply pending migrations to `DATABASE_URL` |
-| `npm run db:seed` | Idempotent demo seed (WEB + API projects, markdown cases) |
+| Script                     | Purpose                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| `npm run dev`              | Start Next.js in development mode                                                    |
+| `npm run build`            | Production build (standalone output)                                                 |
+| `npm run start:standalone` | Serve that build (`HOSTNAME=0.0.0.0`, copies static assets)                          |
+| `npm run start`            | `next start` — **not** supported with `output: "standalone"`; use `start:standalone` |
+| `npm run lint`             | ESLint                                                                               |
+| `npm run typecheck`        | TypeScript (`tsc --noEmit`)                                                          |
+| `npm run test`             | Vitest unit tests (does not require Postgres)                                        |
+| `npm run test:integration` | API integration tests against live Postgres (`DATABASE_URL`, migrated)               |
+| `npm run test:e2e`         | Playwright (seeds, production build, standalone server)                              |
+| `npm run db:generate`      | Generate a SQL migration from `src/lib/db/schema.ts`                                 |
+| `npm run db:migrate`       | Apply pending migrations to `DATABASE_URL` (drizzle-kit)                             |
+| `npm run db:migrate:prod`  | Apply migrations with `scripts/migrate.mjs` (no drizzle-kit)                         |
+| `npm run db:seed`          | Idempotent demo seed (WEB + API projects, markdown cases)                            |
 
 ## Troubleshooting
 

@@ -29,14 +29,14 @@ cp .env.example .env
 
 Edit `.env` if you want non-default credentials or demo data on first boot:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `POSTGRES_USER` | `opentcm` | Postgres role created by the `postgres` service |
-| `POSTGRES_PASSWORD` | `opentcm` | Postgres password (**change in production**) |
-| `POSTGRES_DB` | `opentcm` | Database name |
-| `APP_PORT` | `3000` | Host port mapped to the app container |
-| `OPENTCM_IMAGE` | `ghcr.io/shanecookofficial/opentcm:latest` | Image reference (used when not building locally) |
-| `SEED_DEMO_DATA` | `false` | Set to `true` on **first boot only** to load the WEB/API demo dataset |
+| Variable            | Default                                    | Purpose                                                               |
+| ------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| `POSTGRES_USER`     | `opentcm`                                  | Postgres role created by the `postgres` service                       |
+| `POSTGRES_PASSWORD` | `opentcm`                                  | Postgres password (**change in production**)                          |
+| `POSTGRES_DB`       | `opentcm`                                  | Database name                                                         |
+| `APP_PORT`          | `3000`                                     | Host port mapped to the app container                                 |
+| `OPENTCM_IMAGE`     | `ghcr.io/shanecookofficial/opentcm:latest` | Image reference (used when not building locally)                      |
+| `SEED_DEMO_DATA`    | `false`                                    | Set to `true` on **first boot only** to load the WEB/API demo dataset |
 
 `docker-compose.prod.yml` reads these variables from `.env` in the project directory
 (Compose loads `.env` automatically). It **constructs** `DATABASE_URL` for the app
@@ -54,8 +54,10 @@ Build from source (first run or after pulling code changes):
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Or pull a published release image (after a `v*` tag is published to GHCR; until then
-`ghcr.io/shanecookofficial/opentcm:latest` does not exist — build from source):
+Or pull a published release image (after the maintainer pushes git tag `v0.1.0`;
+the Docker workflow then publishes `ghcr.io/shanecookofficial/opentcm:latest` and
+`:v0.1.0` — until that tag exists, pull will fail and you should build from
+source instead):
 
 ```bash
 docker compose -f docker-compose.prod.yml pull
@@ -414,16 +416,16 @@ that already has OpenTCM tables (`ERROR: schema "drizzle" already exists`).
 
 ## Troubleshooting
 
-| Symptom | Fix |
-| --- | --- |
-| `DATABASE_URL is not set` | Put `DATABASE_URL` in `.env` at the repo root (migrate/seed/standalone load it) or export it in the shell. |
-| App starts but health shows database error | Check Postgres is running, credentials match the role password (not the leftover `.env.example` value `opentcm` unless that is what you created), and migrations ran (`db:migrate:prod`). |
-| `role "opentcm" already exists` | Leftover dev database. Drop and recreate (step 2) or substitute different names. |
-| Port 3000 in use | Set `PORT=3001` (and `APP_PORT=3001` in Compose `.env`). |
-| Docker app exits immediately | `docker compose -f docker-compose.prod.yml logs app` — usually migration failure or bad `DATABASE_URL`. |
-| Blank styles in standalone mode | Use `npm run start:standalone` (copies `.next/static`); do not run `server.js` without static assets. |
-| `/p/WEB` is 404 | Seed was skipped (or prefix is not `WEB`). Open `/` and create a project, or run `npm run db:seed`. |
-| `systemctl: System has not been booted with systemd` | Start Postgres without systemd; the packages can still be installed. |
+| Symptom                                              | Fix                                                                                                                                                                                       |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL is not set`                            | Put `DATABASE_URL` in `.env` at the repo root (migrate/seed/standalone load it) or export it in the shell.                                                                                |
+| App starts but health shows database error           | Check Postgres is running, credentials match the role password (not the leftover `.env.example` value `opentcm` unless that is what you created), and migrations ran (`db:migrate:prod`). |
+| `role "opentcm" already exists`                      | Leftover dev database. Drop and recreate (step 2) or substitute different names.                                                                                                          |
+| Port 3000 in use                                     | Set `PORT=3001` (and `APP_PORT=3001` in Compose `.env`).                                                                                                                                  |
+| Docker app exits immediately                         | `docker compose -f docker-compose.prod.yml logs app` — usually migration failure or bad `DATABASE_URL`.                                                                                   |
+| Blank styles in standalone mode                      | Use `npm run start:standalone` (copies `.next/static`); do not run `server.js` without static assets.                                                                                     |
+| `/p/WEB` is 404                                      | Seed was skipped (or prefix is not `WEB`). Open `/` and create a project, or run `npm run db:seed`.                                                                                       |
+| `systemctl: System has not been booted with systemd` | Start Postgres without systemd; the packages can still be installed.                                                                                                                      |
 
 ---
 
