@@ -1,8 +1,8 @@
 # Agent Playbook — How Grok 4.6 and Composer Work Together
 
 This document is the collaboration protocol for the AI implementation agents building
-OpenTCM (Open Test Case Manager). Read `docs/PLAN.md` first; read `docs/TASKS.md` to
-find your work.
+OpenTCM (Open Test Case Manager). Read `docs/PLAN.md` and, for current work,
+`docs/PLAN-v1.1.md`. Read `docs/TASKS.md` (v0.1.0, done) or `docs/TASKS-v1.1.md`.
 Binding product decisions live in `docs/DECISIONS.md`.
 
 ---
@@ -13,14 +13,13 @@ Two agents, complementary strengths, mutual review:
 
 - **Grok 4.6 — "Backend/Architecture" lane.**
   Owns: database schema and migrations, the API contract (`docs/API.md`), API endpoint
-  implementation, transactional logic (per-project case numbering, step replacement,
-  directory moves, cycle detection, directory delete modes, soft delete/restore, bulk
-  trash/restore/purge), integration tests, markdown sanitization policy.
+  implementation, transactional logic (including v1.1 auth/sessions/RBAC, history
+  event writes, snapshot revert), integration tests, markdown sanitization policy.
   Reviews: everything Composer ships.
 
 - **Composer — "Frontend/Delivery" lane.**
-  Owns: project scaffolding, CI pipeline, all UI screens and components (incl. project
-  switcher, selection mode, and trash), forms and client-side validation, markdown
+  Owns: project scaffolding, CI pipeline, all UI screens and components (incl. v1.1
+  login, user admin, history/revert), forms and client-side validation, markdown
   rendering components, Docker packaging, setup and user documentation, seed/demo data
   content.
   Reviews: everything Grok ships.
@@ -43,9 +42,10 @@ from the other agent.
    requesting review. Never merge red.
 5. **No new dependencies without a one-line justification** in the PR description.
    Prefer the stack already chosen in PLAN §4.
-6. **No roadmap features.** Anything touching runs/results, users/auth, change history,
-   version control, step-text search, import/export, or integrations gets the PR closed
-   with a pointer to PLAN §2.
+6. **Stay on the active plan.** v0.1.0 scope is `docs/PLAN.md` §2. **v1.1**
+   (auth, roles, case history, snapshot revert) is in scope per `docs/PLAN-v1.1.md`
+   and `docs/TASKS-v1.1.md`. Anything touching test **results**, step-text search,
+   import/export, OAuth/SSO/SMTP, or git-like branching still gets closed.
 
 ## 3. Workflow per task
 

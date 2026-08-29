@@ -64,15 +64,17 @@ non-DBA to follow.
 
 In priority order per the product owner:
 
-1. **Users + change history**: accounts so every test case change is attributable and
-   browsable as history/audit trail.
+1. **Users + change history**: **in progress as v1.1** — see `docs/PLAN-v1.1.md`
+   (email/password, roles, append-only snapshots, revert shows A→B→C→A).
 2. **Test runs / results**: manual and automated result reporting, pass/fail history.
 3. **Search by step text** (full-text search via Postgres `tsvector`).
 4. **Import/export** (deferred explicitly).
-5. **Test case version control** (acknowledged as likely complex; furthest out).
+5. **Richer test case version control** (branching, cherry-pick). v1.1 ships the
+   early form: restore-to-snapshot revert without rewriting history.
 
-Also out: authentication (v1 targets closed/trusted networks), integrations, webhooks,
-attachments/uploads (markdown may reference images by URL), tags, custom fields.
+Also out of **v1.0**: integrations, webhooks, attachments/uploads (markdown may
+reference images by URL), tags, custom fields. v1.1 adds closed-network email/password
+auth (`docs/PLAN-v1.1.md`); it still is not a public identity platform.
 
 Out-of-scope items must not leak complexity into v1, but the schema must not paint us
 into a corner (see §5 future-proofing notes).

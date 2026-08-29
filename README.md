@@ -85,7 +85,8 @@ troubleshooting.
 | [CHANGELOG.md](CHANGELOG.md)          | Released and pending changes   |
 | [API.md](docs/API.md)                 | HTTP API contract              |
 | [PLAN.md](docs/PLAN.md)               | Product scope and architecture |
-| [TASKS.md](docs/TASKS.md)             | Implementation task ledger     |
+| [PLAN-v1.1.md](docs/PLAN-v1.1.md)     | v1.1: auth, roles, history     |
+| [TASKS.md](docs/TASKS.md)             | v0.1.0 task ledger             |
 
 ## Security
 
@@ -97,7 +98,7 @@ it behind your own access controls (VPN, firewall, authenticated reverse proxy).
 
 Future themes, in product-owner priority order:
 
-1. **Users and per-case change history**
+1. **Users and per-case change history** — **v1.1** (`docs/PLAN-v1.1.md`): email/password, roles, snapshot revert (A→B→C→A)
 2. **Test result reporting** (manual and automated)
 3. **Search by step text**
 4. **Import / export**

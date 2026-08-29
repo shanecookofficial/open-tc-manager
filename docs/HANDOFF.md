@@ -137,19 +137,14 @@ Recorded in `docs/DECISIONS.md` unless noted:
 - `docs/DEVELOPMENT.md` troubleshooting and seed sections assume the WEB/API demo —
   keep them in sync if seed content changes.
 
-## 8. Confirmed roadmap (product owner's priority order — do not reorder without a new PO ruling)
+## 8. Roadmap
 
-1. **Users + per-case change history.** The PO's top priority. Schema was
-   future-proofed: FK history/audit tables to `test_cases.id` (stable, never reused —
-   distinct from `case_number`). Expect: users table, session/auth mechanism (PO
-   accepted no-auth for v1 explicitly to defer this), append-only case-events table,
-   history view per case. This is a large, contract-expanding milestone — run a full
-   plan → contract-freeze → implement cycle like v1.
-2. **Test result reporting** (manual + automated via the REST API — the reason the
-   API is REST-first).
-3. **Search by step text** (Postgres full-text/tsvector; see search-index note above).
-4. **Import/export** (JSON subtree export was judged cheap and adoption-friendly).
-5. **Test case version control** (PO acknowledges complexity; furthest out).
+v1.1 is underway (`docs/PLAN-v1.1.md`, `docs/TASKS-v1.1.md`, branch
+`cursor/v11-auth-history-967e`). Locked revert semantics: A→B→C then revert to A
+yields **A→B→C→A**. Remaining later themes: test result reporting, step-text
+search, import/export, richer-than-snapshot version control.
+
+## 9. Working with this product owner
 
 ## 9. Working with this product owner
 

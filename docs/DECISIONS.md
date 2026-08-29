@@ -251,3 +251,32 @@ does **not** create git tag `v0.1.0`. Pushing that tag triggers
 Details in `RELEASING.md`. CI's required check remains lint/typecheck/unit/
 integration/build; e2e is required in `CONTRIBUTING.md` before merge but is not
 an Actions check (M0-3 scoped CI that way; Playwright stays local).
+
+---
+
+**2026-08-29 — v1.1 product decisions (auth, history, revert).** Binding
+detail is `docs/PLAN-v1.1.md`. Summary:
+
+1. **Auth:** email + password, Argon2id, httpOnly session cookie, 7-day sliding
+   session. No OAuth, SSO, or SMTP. Closed-network product; this is not a public
+   IdP. `GET /api/v1/health` stays public; every other `/api/v1` route and every
+   page requires a session.
+2. **Provisioning:** Admins create accounts. First Admin from
+   `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` only when `users` is
+   empty. Users change their own password; Admins set anyone’s password.
+3. **Roles (instance-wide, all projects visible):** Admin / Member / Viewer per
+   the matrix in PLAN-v1.1 §4. Purge and user/project administration are
+   Admin-only. Revert is Member+.
+4. **Users are deactivated, not hard-deleted,** so `test_case_events.actor_id`
+   can `ON DELETE RESTRICT`. Display name + email are copied onto each event at
+   write time.
+5. **History + revert (PO confirmation):** snapshot-per-event, append-only.
+   Reverting C back to A **restores snapshot A as current state and appends a
+   new event** whose snapshot is A. Timeline is **A → B → C → A**. Events A, B,
+   and C are never deleted or rewritten. This is restore-to-snapshot, not
+   git-cherry-pick of a single mid-history edit. Revert-of-revert is allowed.
+6. **History covers test-case mutations only** (create, update, move, trash,
+   restore, revert). Bulk ops write one event per case. Purge CASCADE-deletes
+   the case and its events (no tombstone UI). Seed cases are not backfilled with
+   fake authors.
+7. **v0.1.0 merge stays deferred**; v1.1 work lives on its own branch/PR.
