@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import type { ErrorBody, ErrorCode } from "@/lib/contracts";
 
+import { mapPgConstraintError } from "./pg-errors";
+
 const STATUS_BY_CODE: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400,
   NOT_FOUND: 404,
@@ -93,6 +95,13 @@ export function toErrorResponse(error: unknown): Response {
   if (error instanceof z.ZodError) {
     return Response.json(errorBody("VALIDATION_ERROR", formatZodError(error)), {
       status: 400,
+    });
+  }
+
+  const mapped = mapPgConstraintError(error);
+  if (mapped) {
+    return Response.json(errorBody(mapped.code, mapped.message), {
+      status: STATUS_BY_CODE[mapped.code],
     });
   }
 

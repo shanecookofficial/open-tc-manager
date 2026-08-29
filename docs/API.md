@@ -195,7 +195,11 @@ A case may have zero steps.
 
 ### 1.9 HTTP details
 
-- Request `Content-Type: application/json` on methods with a body.
+- Request `Content-Type: application/json` on methods with a body. The
+  server still parses the body as JSON when `Content-Type` is omitted;
+  malformed JSON is `400 VALIDATION_ERROR` (`Invalid JSON body`), never 500.
+- Unknown paths under `/api/v1` return **404** with the standard error
+  envelope (`NOT_FOUND`), not Next.js HTML.
 - Create endpoints return **201** and a `Location` header pointing at the
   resource (`/api/v1/projects/1`, `/api/v1/directories/4`,
   `/api/v1/test-cases/11`).
@@ -300,7 +304,9 @@ expected to have a handful of projects).
 
 Rename and/or change prefix. At least one field required. Changing `prefix`
 does not rewrite `case_number` integers; subsequent reads return the new
-`displayNumber`.
+`displayNumber`. After the change, `GET /test-cases/number/<oldPrefix>-n`
+is **404 NOT_FOUND**; `GET /test-cases/number/<newPrefix>-n` returns the
+same case. The stored integer is unchanged.
 
 **Body (either or both)**
 

@@ -24,13 +24,25 @@ export async function invoke<T = unknown>(
     method?: string;
     path: string;
     body?: unknown;
+    rawBody?: string;
+    headers?: HeadersInit;
     params?: Record<string, string>;
   },
 ): Promise<ApiResult<T>> {
   const init: RequestInit = { method: options.method ?? "GET" };
-  if (options.body !== undefined) {
-    init.headers = { "content-type": "application/json" };
+  const headers = new Headers(options.headers);
+
+  if (options.rawBody !== undefined) {
+    init.body = options.rawBody;
+  } else if (options.body !== undefined) {
+    if (!headers.has("content-type")) {
+      headers.set("content-type", "application/json");
+    }
     init.body = JSON.stringify(options.body);
+  }
+
+  if ([...headers.keys()].length > 0) {
+    init.headers = headers;
   }
 
   const request = new Request(`http://localhost${options.path}`, init);

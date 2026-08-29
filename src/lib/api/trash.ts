@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import type {
   BulkCountResponse,
@@ -35,8 +35,15 @@ function isIdSelection(
   return "ids" in selection;
 }
 
-async function restoreRow(executor: DbExecutor, row: TestCaseRow) {
+async function restoreRow(
+  executor: DbExecutor,
+  row: TestCaseRow,
+  options: { skipIfActive?: boolean } = {},
+) {
   if (row.deletedAt === null) {
+    if (options.skipIfActive) {
+      return row;
+    }
     throw new ApiError(
       "CASE_NOT_IN_TRASH",
       `Test case ${row.id} is not in the trash.`,
@@ -158,7 +165,7 @@ export async function listTrash(projectId: number, query: TrashListQuery) {
 
 export async function restoreTestCase(id: number) {
   const updated = await db.transaction(async (tx) => {
-    const row = await requireTestCase(id, tx);
+    const row = await requireTestCase(id, tx, true);
     return restoreRow(tx, row);
   });
   return assembleTestCase(updated);
@@ -197,6 +204,7 @@ export async function bulkTrash(
         and(
           inArray(testCases.id, ids),
           eq(testCases.projectId, body.projectId),
+          isNull(testCases.deletedAt),
         ),
       )
       .returning({ id: testCases.id });
@@ -218,14 +226,21 @@ export async function bulkRestore(
     if (ids.length === 0) {
       return { count: 0 };
     }
+    const skipIfActive = !isIdSelection(body);
     const rows = await tx
       .select()
       .from(testCases)
-      .where(inArray(testCases.id, ids));
+      .where(inArray(testCases.id, ids))
+      .for("update");
+    let count = 0;
     for (const row of rows) {
-      await restoreRow(tx, row);
+      const wasTrashed = row.deletedAt !== null;
+      const updated = await restoreRow(tx, row, { skipIfActive });
+      if (wasTrashed && updated.deletedAt === null) {
+        count += 1;
+      }
     }
-    return { count: rows.length };
+    return { count };
   });
 }
 

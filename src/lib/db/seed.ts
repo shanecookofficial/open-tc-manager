@@ -15,12 +15,26 @@
  */
 import "dotenv/config";
 
+import { pathToFileURL } from "node:url";
+
 import { and, eq, isNull, max, sql } from "drizzle-orm";
 
 import { createFixtures } from "@/lib/contracts/fixtures";
+import { isUniqueViolation } from "@/lib/api/pg-errors";
 
 import { db, pool } from "./index";
 import { directories, projects, testCases, testSteps } from "./schema";
+
+export type SeedResult = {
+  insertedCases: number;
+  skippedCases: number;
+  counts: {
+    projects: number;
+    directories: number;
+    test_cases: number;
+    test_steps: number;
+  };
+};
 
 async function findDirectory(
   projectId: number,
@@ -46,7 +60,7 @@ async function findDirectory(
 
 async function findTestCase(projectId: number, caseNumber: number) {
   const [row] = await db
-    .select()
+    .select({ id: testCases.id })
     .from(testCases)
     .where(
       and(
@@ -73,7 +87,7 @@ async function syncNextCaseNumber(projectId: number) {
     .where(eq(projects.id, projectId));
 }
 
-async function seed() {
+export async function runSeed(): Promise<SeedResult> {
   const fixtures = createFixtures();
 
   const projectIdByFixtureId = new Map<number, number>();
@@ -152,6 +166,7 @@ async function seed() {
   }
 
   let insertedCases = 0;
+  let skippedCases = 0;
 
   for (const fixtureCase of fixtures.testCases) {
     const projectId = projectIdByFixtureId.get(fixtureCase.projectId);
@@ -161,6 +176,7 @@ async function seed() {
 
     const existing = await findTestCase(projectId, fixtureCase.caseNumber);
     if (existing) {
+      skippedCases += 1;
       continue;
     }
 
@@ -175,35 +191,46 @@ async function seed() {
       );
     }
 
-    const [insertedCase] = await db
-      .insert(testCases)
-      .values({
-        projectId,
-        caseNumber: fixtureCase.caseNumber,
-        title: fixtureCase.title,
-        description: fixtureCase.description,
-        directoryId,
-        deletedAt:
-          fixtureCase.deletedAt === null
-            ? null
-            : new Date(fixtureCase.deletedAt),
-        createdAt: new Date(fixtureCase.createdAt),
-        updatedAt: new Date(fixtureCase.updatedAt),
-      })
-      .returning();
+    try {
+      const [insertedCase] = await db
+        .insert(testCases)
+        .values({
+          projectId,
+          caseNumber: fixtureCase.caseNumber,
+          title: fixtureCase.title,
+          description: fixtureCase.description,
+          directoryId,
+          deletedAt:
+            fixtureCase.deletedAt === null
+              ? null
+              : new Date(fixtureCase.deletedAt),
+          createdAt: new Date(fixtureCase.createdAt),
+          updatedAt: new Date(fixtureCase.updatedAt),
+        })
+        .returning();
 
-    if (fixtureCase.steps.length > 0) {
-      await db.insert(testSteps).values(
-        fixtureCase.steps.map((step) => ({
-          testCaseId: insertedCase.id,
-          position: step.position,
-          action: step.action,
-          expectedResult: step.expectedResult,
-        })),
-      );
+      if (fixtureCase.steps.length > 0) {
+        await db.insert(testSteps).values(
+          fixtureCase.steps.map((step) => ({
+            testCaseId: insertedCase.id,
+            position: step.position,
+            action: step.action,
+            expectedResult: step.expectedResult,
+          })),
+        );
+      }
+
+      insertedCases += 1;
+    } catch (error) {
+      // Concurrent seed or a lookup miss: the unique key is the source of truth.
+      if (
+        isUniqueViolation(error, "test_cases_project_id_case_number_unique")
+      ) {
+        skippedCases += 1;
+        continue;
+      }
+      throw error;
     }
-
-    insertedCases += 1;
   }
 
   for (const projectId of projectIdByFixtureId.values()) {
@@ -225,17 +252,34 @@ async function seed() {
     test_steps: number;
   };
 
-  console.log(
-    `Seed complete (${insertedCases} new case(s)). Row counts:`,
-    counts,
-  );
+  return { insertedCases, skippedCases, counts };
 }
 
-seed()
-  .catch((error: unknown) => {
-    console.error("Seed failed:", error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await pool.end();
-  });
+function isDirectRun(): boolean {
+  const entry = process.argv[1];
+  if (!entry) {
+    return false;
+  }
+  try {
+    return import.meta.url === pathToFileURL(entry).href;
+  } catch {
+    return /seed\.(ts|js|mts|mjs)$/.test(entry);
+  }
+}
+
+if (isDirectRun()) {
+  runSeed()
+    .then((result) => {
+      console.log(
+        `Seed complete (inserted ${result.insertedCases} case(s), ${result.skippedCases} already present). Row counts:`,
+        result.counts,
+      );
+    })
+    .catch((error: unknown) => {
+      console.error("Seed failed:", error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await pool.end();
+    });
+}

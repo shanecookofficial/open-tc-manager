@@ -158,3 +158,72 @@ need initial data import `@/lib/api/*` directly (same serializers as the
 HTTP layer) because relative `fetch` has no origin during RSC render.
 Repository filters live in URL search params (`dir`, `q`, `page`,
 `pageSize`) for deep links and Playwright stability.
+
+---
+
+**2026-08-28 — M5-1 API bug bash (Grok 4.6).** Attacks against the data
+layer and the fixes / explicit deferrals:
+
+1. **Postgres constraint races map to the contract envelope.** Uncaught
+   CHECK (`23514`), foreign-key (`23503`), and unique (`23505`) failures
+   used to become `500 INTERNAL_ERROR`. `toErrorResponse` now maps them
+   through `mapPgConstraintError` so whitespace that slips past Zod, a
+   create-into-a-just-deleted-folder FK, or a sibling-name race is
+   `400` / `404` / `409` with a closed error code. Call sites still throw
+   more specific messages when they catch the same constraint first.
+
+2. **Row locks for last-write-wins.** `PUT /test-cases/:id` takes
+   `SELECT … FOR UPDATE` on the case row so parallel step replacements
+   cannot interleave inserts (mixed/duplicated positions → unique
+   violation → 500). Directory create/rename/move/delete and case create
+   lock the **project** row first so tree mutations and create-into-folder
+   serialize; a mid-chain move under a descendant stays `CYCLE_DETECTED`
+   without a cycle slipping through. Bulk-trash `{ all }` UPDATE is
+   guarded with `deleted_at IS NULL`. Bulk-restore `{ all }` skips rows
+   another client already restored rather than failing the whole batch;
+   bulk `{ ids }` still 409s on wrong state.
+
+3. **Unknown `/api/v1` paths** return the JSON `404 NOT_FOUND` envelope
+   via `src/app/api/v1/[...path]/route.ts` (documented in API.md §1.9).
+   Malformed JSON is `400 VALIDATION_ERROR`. JSON bodies are parsed even
+   when `Content-Type` is omitted.
+
+4. **Seed re-run message.** The log line counted as "N new case(s)" and
+   was easy to misread against the total `test_cases` row count on a
+   no-op re-run. `runSeed()` now returns `{ insertedCases, skippedCases }`
+   and prints `inserted 0 case(s), 18 already present`. Insert also treats
+   `(project_id, case_number)` unique violations as "already present" so
+   a lookup miss cannot crash or double-insert.
+
+5. **Failed creates do not burn case numbers.** Allocation happens inside
+   the create transaction after validation/FK checks; a `400`/`404` never
+   touches `next_case_number`, and a CHECK/insert failure rolls the
+   counter back with the transaction. This reaffirms the M2-2 decision;
+   burning is **not** acceptable in v1.
+
+6. **Prefix change vs GET-by-display-number.** Contract (API.md §2 PATCH
+   - §4 GET-by-number): lookup is against the **current** `projects.prefix`.
+     After `WEB` → `WEBX`, `GET …/number/WEB-n` is 404 and `WEBX-n` returns
+     the same row. Stored `caseNumber` is unchanged.
+
+**Explicit v1 deferrals (not data-loss):**
+
+- **Restore-to-root toast / original directory (v1.1).** After
+  `ON DELETE SET NULL`, trash summaries only have `directoryId: null`,
+  so the UI cannot distinguish "was always at root" from "folder was
+  deleted". Telling those apart requires persisting an original-directory
+  snapshot (schema + contract). Restore _destination_ is already correct
+  (root fallback). The UI heuristic in `trash-view.tsx` that tries to
+  phrase "original folder no longer exists" is therefore wrong whenever
+  `dirId` is already null — Composer should not treat that copy as
+  accurate until v1.1 grows the snapshot. No contract addition in v1.
+
+- **JSON body on HTTP 405 (v1.1).** Next.js returns native `405` with an
+  `Allow` header for methods a route file does not export. Wrapping every
+  route with dummy methods (or adding `METHOD_NOT_ALLOWED` to the closed
+  error enum) is boilerplate / a contract-change. Unknown paths are 404
+  JSON regardless of method, which is the important hygiene fix.
+
+- **`next_case_number` integer overflow (v1.1).** Counters are PostgreSQL
+  `integer` (max 2_147_483_647). Overflow is not a v1 scenario; high
+  values below the cap work. No bigint migration in v1.

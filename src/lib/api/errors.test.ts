@@ -60,4 +60,46 @@ describe("toErrorResponse", () => {
       },
     });
   });
+
+  it("maps CHECK violations to VALIDATION_ERROR instead of 500", async () => {
+    const error = Object.assign(new Error("violates check constraint"), {
+      code: "23514",
+      constraint: "test_cases_title_trimmed_length",
+    });
+    const response = toErrorResponse(error);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "title: must be 1–200 characters after trimming",
+      },
+    });
+  });
+
+  it("maps foreign-key violations to NOT_FOUND instead of 500", async () => {
+    const error = Object.assign(new Error("fk"), {
+      code: "23503",
+      constraint: "test_cases_directory_id_directories_id_fk",
+    });
+    const response = toErrorResponse(error);
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "NOT_FOUND" },
+    });
+  });
+
+  it("maps unique violations wrapped in cause to the specific 409 code", async () => {
+    const inner = Object.assign(new Error("unique"), {
+      code: "23505",
+      constraint: "directories_project_id_parent_id_name_unique",
+    });
+    const wrapped = Object.assign(new Error("DrizzleQueryError"), {
+      cause: inner,
+    });
+    const response = toErrorResponse(wrapped);
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "SIBLING_NAME_TAKEN" },
+    });
+  });
 });

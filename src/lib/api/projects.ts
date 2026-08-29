@@ -9,12 +9,15 @@ import type { DbExecutor } from "./numbering";
 import { isUniqueViolation } from "./pg-errors";
 import { serializeProject } from "./serialize";
 
-export async function requireProject(id: number, executor: DbExecutor = db) {
-  const [row] = await executor
-    .select()
-    .from(projects)
-    .where(eq(projects.id, id))
-    .limit(1);
+export async function requireProject(
+  id: number,
+  executor: DbExecutor = db,
+  forUpdate = false,
+) {
+  const query = executor.select().from(projects).where(eq(projects.id, id));
+  const [row] = forUpdate
+    ? await query.for("update").limit(1)
+    : await query.limit(1);
   if (!row) {
     notFound("Project", id);
   }

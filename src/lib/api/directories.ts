@@ -18,12 +18,18 @@ import { requireProject } from "./projects";
 import { serializeDirectory } from "./serialize";
 import { collectSubtreeIds } from "./tree-utils";
 
-export async function requireDirectory(id: number, executor: DbExecutor = db) {
-  const [row] = await executor
+export async function requireDirectory(
+  id: number,
+  executor: DbExecutor = db,
+  forUpdate = false,
+) {
+  const query = executor
     .select()
     .from(directories)
-    .where(eq(directories.id, id))
-    .limit(1);
+    .where(eq(directories.id, id));
+  const [row] = forUpdate
+    ? await query.for("update").limit(1)
+    : await query.limit(1);
   if (!row) {
     notFound("Directory", id);
   }
@@ -145,57 +151,63 @@ export async function getProjectTree(projectId: number): Promise<ProjectTree> {
 }
 
 export async function createDirectory(body: CreateDirectoryBody) {
-  await requireProject(body.projectId);
-  const parentId = body.parentId ?? null;
-  if (parentId !== null) {
-    await requireParentInProject(parentId, body.projectId);
-  }
+  return db.transaction(async (tx) => {
+    await requireProject(body.projectId, tx, true);
+    const parentId = body.parentId ?? null;
+    if (parentId !== null) {
+      await requireParentInProject(parentId, body.projectId, tx);
+    }
 
-  try {
-    const [row] = await db
-      .insert(directories)
-      .values({
-        projectId: body.projectId,
-        parentId,
-        name: body.name,
-      })
-      .returning();
-    return serializeDirectory(row);
-  } catch (error) {
-    throwSiblingName(error, body.name);
-  }
+    try {
+      const [row] = await tx
+        .insert(directories)
+        .values({
+          projectId: body.projectId,
+          parentId,
+          name: body.name,
+        })
+        .returning();
+      return serializeDirectory(row);
+    } catch (error) {
+      throwSiblingName(error, body.name);
+    }
+  });
 }
 
 export async function updateDirectory(id: number, body: PatchDirectoryBody) {
-  const current = await requireDirectory(id);
-  const nextName = body.name ?? current.name;
-  const nextParentId =
-    body.parentId !== undefined ? body.parentId : current.parentId;
+  return db.transaction(async (tx) => {
+    const peeked = await requireDirectory(id, tx);
+    await requireProject(peeked.projectId, tx, true);
+    const current = await requireDirectory(id, tx, true);
+    const nextName = body.name ?? current.name;
+    const nextParentId =
+      body.parentId !== undefined ? body.parentId : current.parentId;
 
-  if (body.parentId !== undefined) {
-    if (body.parentId !== null) {
-      await requireParentInProject(body.parentId, current.projectId);
+    if (body.parentId !== undefined) {
+      if (body.parentId !== null) {
+        await requireParentInProject(body.parentId, current.projectId, tx);
+      }
+      await assertNoCycle(tx, id, body.parentId);
     }
-    await assertNoCycle(db, id, body.parentId);
-  }
 
-  try {
-    const [row] = await db
-      .update(directories)
-      .set({
-        name: nextName,
-        parentId: nextParentId,
-        updatedAt: new Date(),
-      })
-      .where(eq(directories.id, id))
-      .returning();
-    if (!row) {
-      notFound("Directory", id);
+    try {
+      const [row] = await tx
+        .update(directories)
+        .set({
+          name: nextName,
+          parentId: nextParentId,
+          updatedAt: new Date(),
+        })
+        .where(eq(directories.id, id))
+        .returning();
+      if (!row) {
+        notFound("Directory", id);
+      }
+      return serializeDirectory(row);
+    } catch (error) {
+      throwSiblingName(error, nextName);
     }
-    return serializeDirectory(row);
-  } catch (error) {
-    throwSiblingName(error, nextName);
-  }
+  });
 }
 
 async function countActiveInSubtree(
@@ -218,9 +230,10 @@ export async function deleteDirectory(
   id: number,
   mode: DirectoryDeleteMode | undefined,
 ): Promise<DirectoryDeleteResponse> {
-  const directory = await requireDirectory(id);
-
   return db.transaction(async (tx) => {
+    const peeked = await requireDirectory(id, tx);
+    await requireProject(peeked.projectId, tx, true);
+    const directory = await requireDirectory(id, tx, true);
     const dirs = await tx
       .select({
         id: directories.id,

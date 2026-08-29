@@ -123,12 +123,15 @@ export function assertCaseActive(row: TestCaseRow) {
   }
 }
 
-export async function requireTestCase(id: number, executor: DbExecutor = db) {
-  const [row] = await executor
-    .select()
-    .from(testCases)
-    .where(eq(testCases.id, id))
-    .limit(1);
+export async function requireTestCase(
+  id: number,
+  executor: DbExecutor = db,
+  forUpdate = false,
+) {
+  const query = executor.select().from(testCases).where(eq(testCases.id, id));
+  const [row] = forUpdate
+    ? await query.for("update").limit(1)
+    : await query.limit(1);
   if (!row) {
     notFound("Test case", id);
   }
@@ -262,7 +265,7 @@ export async function createTestCase(body: CreateTestCaseBody) {
   const directoryId = body.directoryId ?? null;
 
   const createdId = await db.transaction(async (tx) => {
-    await requireProject(body.projectId, tx);
+    await requireProject(body.projectId, tx, true);
     await assertDirectoryForWrite(body.projectId, directoryId, tx);
     const caseNumber = await allocateCaseNumber(tx, body.projectId);
     const [row] = await tx
@@ -314,7 +317,7 @@ export async function getTestCaseByDisplayNumber(display: string) {
 
 export async function updateTestCase(id: number, body: PutTestCaseBody) {
   await db.transaction(async (tx) => {
-    const current = await requireTestCase(id, tx);
+    const current = await requireTestCase(id, tx, true);
     assertCaseActive(current);
     await assertDirectoryForWrite(current.projectId, body.directoryId, tx);
     await tx
@@ -333,25 +336,32 @@ export async function updateTestCase(id: number, body: PutTestCaseBody) {
 }
 
 export async function moveTestCase(id: number, body: MoveTestCaseBody) {
-  const current = await requireTestCase(id);
-  assertCaseActive(current);
-  await assertDirectoryForWrite(current.projectId, body.directoryId);
-  const [row] = await db
-    .update(testCases)
-    .set({ directoryId: body.directoryId, updatedAt: new Date() })
-    .where(eq(testCases.id, id))
-    .returning();
+  const row = await db.transaction(async (tx) => {
+    const current = await requireTestCase(id, tx, true);
+    assertCaseActive(current);
+    await requireProject(current.projectId, tx, true);
+    await assertDirectoryForWrite(current.projectId, body.directoryId, tx);
+    const [updated] = await tx
+      .update(testCases)
+      .set({ directoryId: body.directoryId, updatedAt: new Date() })
+      .where(eq(testCases.id, id))
+      .returning();
+    return updated;
+  });
   return assembleTestCase(row);
 }
 
 export async function softDeleteTestCase(id: number) {
-  const current = await requireTestCase(id);
-  assertCaseActive(current);
-  const now = new Date();
-  const [row] = await db
-    .update(testCases)
-    .set({ deletedAt: now, updatedAt: now })
-    .where(eq(testCases.id, id))
-    .returning();
+  const row = await db.transaction(async (tx) => {
+    const current = await requireTestCase(id, tx, true);
+    assertCaseActive(current);
+    const now = new Date();
+    const [updated] = await tx
+      .update(testCases)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(eq(testCases.id, id))
+      .returning();
+    return updated;
+  });
   return assembleTestCase(row);
 }
