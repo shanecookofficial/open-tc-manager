@@ -14,6 +14,12 @@ export const STEPS_MAX = 500;
 export const QUERY_MAX = 200;
 export const PAGE_SIZE_DEFAULT = 50;
 export const PAGE_SIZE_MAX = 200;
+export const DISPLAY_NAME_MAX = 80;
+export const EMAIL_MAX = 254;
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 256;
+export const EVENTS_LIMIT_DEFAULT = 500;
+export const EVENTS_LIMIT_MAX = 500;
 
 /** JSON resource ids (PostgreSQL BIGINT, JS-safe integer). */
 export const idSchema = z.number().int().positive();
@@ -63,6 +69,11 @@ export const errorCodeSchema = z.enum([
   "CASE_NOT_IN_TRASH",
   "CASE_ALREADY_TRASHED",
   "CROSS_PROJECT",
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "INVALID_CREDENTIALS",
+  "USER_DEACTIVATED",
+  "EMAIL_TAKEN",
   "DATABASE_UNAVAILABLE",
   "INTERNAL_ERROR",
 ]);
@@ -160,3 +171,24 @@ export const bulkCountResponseSchema = z.object({
 export type BulkCountResponse = z.infer<typeof bulkCountResponseSchema>;
 
 export const searchQuerySchema = z.string().trim().min(1).max(QUERY_MAX);
+
+export const userRoleSchema = z.enum(["admin", "member", "viewer"]);
+
+export type UserRole = z.infer<typeof userRoleSchema>;
+
+/** Stored and compared lowercased. */
+export const emailSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(EMAIL_MAX)
+  .toLowerCase()
+  .pipe(z.email());
+
+export const displayNameSchema = z.string().trim().min(1).max(DISPLAY_NAME_MAX);
+
+export const passwordSchema = z
+  .string()
+  .trim()
+  .min(PASSWORD_MIN)
+  .max(PASSWORD_MAX);

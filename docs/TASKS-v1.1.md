@@ -19,7 +19,7 @@ Decisions: `docs/DECISIONS.md`.
   cases; integration tests for those FKs.
 
 ### A1-2 · API contract expansion
-- **Owner:** Grok 4.6 · **Status:** todo · **Needs:** A1-1
+- **Owner:** Grok 4.6 · **Status:** review · **Needs:** A1-1
 - Update `docs/API.md` + Zod in `src/lib/contracts/` for auth, users, events,
   revert, new error codes, and “all other routes require a session.” Fixtures:
   sample users + a 4-event timeline A→B→C→A.

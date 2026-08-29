@@ -29,6 +29,16 @@ export {
   searchQuerySchema,
   timestampsSchema,
   titleSchema,
+  userRoleSchema,
+  emailSchema,
+  displayNameSchema,
+  passwordSchema,
+  EMAIL_MAX,
+  DISPLAY_NAME_MAX,
+  PASSWORD_MIN,
+  PASSWORD_MAX,
+  EVENTS_LIMIT_DEFAULT,
+  EVENTS_LIMIT_MAX,
 } from "./shared";
 export type {
   BulkCountResponse,
@@ -39,6 +49,7 @@ export type {
   ErrorCode,
   Paginated,
   PaginationQuery,
+  UserRole,
 } from "./shared";
 
 export {
@@ -109,6 +120,50 @@ export type {
 
 export { healthResponseSchema } from "./health";
 export type { HealthResponse } from "./health";
+
+export {
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SECONDS,
+  changePasswordBodySchema,
+  loginBodySchema,
+} from "./auth";
+export type { ChangePasswordBody, LoginBody } from "./auth";
+
+export {
+  createUserBodySchema,
+  patchUserBodySchema,
+  sessionUserResponseSchema,
+  userIdParamSchema,
+  userListResponseSchema,
+  userSchema,
+} from "./users";
+export type {
+  CreateUserBody,
+  PatchUserBody,
+  SessionUserResponse,
+  User,
+  UserListResponse,
+} from "./users";
+
+export {
+  caseEventActionSchema,
+  caseEventSnapshotSchema,
+  revertTestCaseBodySchema,
+  revertTestCaseResponseSchema,
+  testCaseEventListResponseSchema,
+  testCaseEventSchema,
+  testCaseEventsParamsSchema,
+  testCaseEventsQuerySchema,
+} from "./events";
+export type {
+  CaseEventAction,
+  CaseEventSnapshot,
+  RevertTestCaseBody,
+  RevertTestCaseResponse,
+  TestCaseEvent,
+  TestCaseEventListResponse,
+  TestCaseEventsQuery,
+} from "./events";
 
 export { createFixtures, getCaseByDisplayNumber, toSummary } from "./fixtures";
 export type { ContractFixtures } from "./fixtures";

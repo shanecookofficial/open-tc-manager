@@ -293,3 +293,25 @@ lowercasing. Event `actor_id` is `ON DELETE RESTRICT`; `test_case_id` is
 `ON DELETE CASCADE` (purge removes history with the case). Sessions cascade
 with the user. `reverted_event_id` is a self-FK `ON DELETE RESTRICT`; same-case
 membership is still application-enforced.
+
+---
+
+**2026-08-29 — v1.1 API contract expansion (A1-2 freeze candidate).** Composer
+review of this entry + `docs/API.md` + `src/lib/contracts/` **is** the freeze.
+Choices worth not rediscovering:
+
+- Existing v1 JSON shapes are unchanged. The only addition on those routes is
+  session + role gating. Public API: `POST /auth/login` and `GET /health`
+  only. `POST /auth/logout` requires a session (401 without one).
+- Login/me return `{ user }`. Passwords never appear in JSON. Cookie
+  `opentcm_session` httpOnly SameSite=Lax, 7-day sliding, SHA-256 stored.
+- New error HTTP mapping: `UNAUTHENTICATED`/`INVALID_CREDENTIALS` → 401;
+  `FORBIDDEN`/`USER_DEACTIVATED` → 403; `EMAIL_TAKEN` → 409. Last-Admin
+  protection uses existing `409 CONFLICT`.
+- `PATCH /users/:id` uses `password` (not `setPassword`) and
+  `deactivatedAt: iso | null`. Email is not patchable in v1.1.
+- History list is `{ items }` oldest-first, `limit` default/max 500 (most
+  recent window if over cap). Revert is `201 { event, case }`. Unknown
+  `eventId` is 404; wrong-case `eventId` is 409 CONFLICT.
+- Fixtures: Ada/Charles/Grace/retired users; WEB-1 events whose snapshots
+  are A, B, C, A (`revertedEventId` of the fourth equals the first id).

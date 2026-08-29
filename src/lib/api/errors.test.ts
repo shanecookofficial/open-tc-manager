@@ -102,4 +102,29 @@ describe("toErrorResponse", () => {
       error: { code: "SIBLING_NAME_TAKEN" },
     });
   });
+
+  it("maps users_email_unique to EMAIL_TAKEN and new auth codes to 401/403", async () => {
+    const unique = Object.assign(new Error("unique"), {
+      code: "23505",
+      constraint: "users_email_lower_unique",
+    });
+    const taken = toErrorResponse(unique);
+    expect(taken.status).toBe(409);
+    await expect(taken.json()).resolves.toMatchObject({
+      error: { code: "EMAIL_TAKEN" },
+    });
+
+    const unauth = toErrorResponse(
+      new ApiError("UNAUTHENTICATED", "Sign in to continue."),
+    );
+    expect(unauth.status).toBe(401);
+    const forbidden = toErrorResponse(
+      new ApiError("FORBIDDEN", "Viewers cannot revert."),
+    );
+    expect(forbidden.status).toBe(403);
+    const deactivated = toErrorResponse(
+      new ApiError("USER_DEACTIVATED", "This account has been deactivated."),
+    );
+    expect(deactivated.status).toBe(403);
+  });
 });

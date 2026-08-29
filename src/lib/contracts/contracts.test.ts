@@ -3,16 +3,25 @@ import { describe, expect, it } from "vitest";
 import {
   bulkSelectionSchema,
   bulkSelectionWithProjectSchema,
+  changePasswordBodySchema,
   createProjectBodySchema,
   createTestCaseBodySchema,
+  createUserBodySchema,
   errorBodySchema,
   healthResponseSchema,
+  loginBodySchema,
   projectListResponseSchema,
   projectSchema,
   projectTreeSchema,
+  revertTestCaseResponseSchema,
+  sessionUserResponseSchema,
+  testCaseEventListResponseSchema,
+  testCaseEventSchema,
   testCaseListResponseSchema,
   testCaseSchema,
   testCaseSummarySchema,
+  userListResponseSchema,
+  userSchema,
 } from "./index";
 import { createFixtures, toSummary } from "./fixtures";
 import { PAGE_SIZE_DEFAULT } from "./shared";
@@ -115,6 +124,58 @@ describe("contract fixtures", () => {
       }).error.code,
     ).toBe("CASE_NOT_TRASHED");
   });
+
+  it("parses sample users for all three roles plus a deactivated member", () => {
+    expect(fixtures.users).toHaveLength(4);
+    for (const user of fixtures.users) {
+      expect(userSchema.parse(user).email).toBe(user.email);
+    }
+    expect(
+      userListResponseSchema.parse({ items: fixtures.users }).items,
+    ).toHaveLength(4);
+    expect(fixtures.users.map((u) => u.role).sort()).toEqual([
+      "admin",
+      "member",
+      "member",
+      "viewer",
+    ]);
+    expect(fixtures.users.filter((u) => u.deactivatedAt !== null)).toHaveLength(
+      1,
+    );
+    expect(
+      sessionUserResponseSchema.parse({ user: fixtures.users[0] }).user.role,
+    ).toBe("admin");
+  });
+
+  it("includes a four-event WEB-1 timeline whose snapshots are A, B, C, A", () => {
+    expect(fixtures.caseEvents).toHaveLength(4);
+    for (const event of fixtures.caseEvents) {
+      expect(testCaseEventSchema.parse(event).id).toBe(event.id);
+      expect(event.testCaseId).toBe(1);
+    }
+    expect(
+      testCaseEventListResponseSchema.parse({ items: fixtures.caseEvents })
+        .items,
+    ).toHaveLength(4);
+
+    const [eventA, eventB, eventC, eventD] = fixtures.caseEvents;
+    expect(eventA.action).toBe("created");
+    expect(eventB.action).toBe("updated");
+    expect(eventC.action).toBe("updated");
+    expect(eventD.action).toBe("reverted");
+    expect(eventD.revertedEventId).toBe(eventA.id);
+    expect(eventD.snapshot).toEqual(eventA.snapshot);
+    expect(eventB.snapshot).not.toEqual(eventA.snapshot);
+    expect(eventC.snapshot).not.toEqual(eventA.snapshot);
+    expect(eventC.snapshot).not.toEqual(eventB.snapshot);
+
+    const web1 = fixtures.testCases.find((c) => c.displayNumber === "WEB-1");
+    expect(web1).toBeDefined();
+    revertTestCaseResponseSchema.parse({
+      event: eventD,
+      case: web1,
+    });
+  });
 });
 
 describe("contract negative cases", () => {
@@ -151,5 +212,59 @@ describe("contract negative cases", () => {
 
   it("rejects an empty ids array", () => {
     expect(() => bulkSelectionSchema.parse({ ids: [] })).toThrow();
+  });
+
+  it("parses the v1.1 auth error codes", () => {
+    for (const code of [
+      "UNAUTHENTICATED",
+      "FORBIDDEN",
+      "INVALID_CREDENTIALS",
+      "USER_DEACTIVATED",
+      "EMAIL_TAKEN",
+    ] as const) {
+      expect(
+        errorBodySchema.parse({
+          error: { code, message: "Example." },
+        }).error.code,
+      ).toBe(code);
+    }
+  });
+
+  it("lowercases login email and rejects a short password", () => {
+    expect(
+      loginBodySchema.parse({
+        email: "Ada@Opentcm.Local",
+        password: "correct-horse",
+      }).email,
+    ).toBe("ada@opentcm.local");
+    expect(() =>
+      loginBodySchema.parse({ email: "ada@opentcm.local", password: "short" }),
+    ).toThrow();
+    expect(() =>
+      changePasswordBodySchema.parse({
+        currentPassword: "old-password",
+        newPassword: "tiny",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects extra keys on create-user and a missing patch field", () => {
+    expect(() =>
+      createUserBodySchema.parse({
+        email: "ada@opentcm.local",
+        displayName: "Ada",
+        role: "admin",
+        password: "correct-horse",
+        extra: true,
+      }),
+    ).toThrow();
+    expect(() =>
+      createUserBodySchema.parse({
+        email: "not-an-email",
+        displayName: "Ada",
+        role: "admin",
+        password: "correct-horse",
+      }),
+    ).toThrow();
   });
 });

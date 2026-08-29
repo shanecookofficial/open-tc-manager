@@ -75,6 +75,21 @@ export function mapPgConstraintError(
           message:
             "prefix: must be 2–10 uppercase letters/digits starting with a letter",
         };
+      case "users_display_name_trimmed_length":
+        return {
+          code: "VALIDATION_ERROR",
+          message: "displayName: must be 1–80 characters after trimming",
+        };
+      case "users_role":
+        return {
+          code: "VALIDATION_ERROR",
+          message: "role: must be admin, member, or viewer",
+        };
+      case "test_case_events_action":
+        return {
+          code: "VALIDATION_ERROR",
+          message: "action: must be a known case-history action",
+        };
       default:
         return {
           code: "VALIDATION_ERROR",
@@ -112,6 +127,12 @@ export function mapPgConstraintError(
         return {
           code: "NAME_TAKEN",
           message: "A project with that name already exists.",
+        };
+      case "users_email_unique":
+      case "users_email_lower_unique":
+        return {
+          code: "EMAIL_TAKEN",
+          message: "A user with that email already exists.",
         };
       default:
         return {

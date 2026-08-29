@@ -1,14 +1,20 @@
 # OpenTCM HTTP API
 
-**Version:** v1 (frozen at M1-2)  
+**Version:** v1.1 (A1-2 freeze candidate; v1 resource JSON shapes are unchanged)  
 **Base path:** `/api/v1`  
 **Format:** JSON, UTF-8  
-**Auth:** none (v1 is for closed/trusted networks)
+**Auth:** session cookie `opentcm_session` required on **every** route except
+`POST /api/v1/auth/login` and `GET /api/v1/health`. See §1.10.
 
 This document is the contract both agents build against. The executable twin is
 `src/lib/contracts/` (Zod schemas + inferred types + `fixtures.ts`). Changing
 anything here requires a `contract-change` PR that updates this file, the Zod
 schemas, and the fixtures together (`docs/AGENT_PLAYBOOK.md` §4).
+
+v1.1 **adds** auth, users, case history, and revert. Existing project /
+directory / case / trash / health request and response bodies are **not**
+renamed or reshaped. The only behavioral addition on those routes is that they
+now require a session and enforce the role matrix in §1.11.
 
 ---
 
@@ -44,6 +50,9 @@ backstop; the API rejects values that would fail them.
 | `expectedResult`            | optional; max 20 000; empty / omitted → `null`                              |
 | `steps`                     | 0–500 items; array order is 1-based `position`                              |
 | `q`                         | optional search string; trimmed; max 200                                    |
+| `email`                     | trimmed; stored and compared **lowercased**; valid email; max 254           |
+| `displayName`               | trimmed length 1–80                                                         |
+| `password`                  | trimmed length 8–256. No complexity rules.                                  |
 
 ### 1.3 Error envelope
 
@@ -77,6 +86,11 @@ v1 — validation failures put the field name in `message`.
 | 409  | `CASE_NOT_IN_TRASH`    | Restore targeting a case that is not in the trash.                                                       |
 | 409  | `CASE_ALREADY_TRASHED` | Soft-delete / bulk-trash targeting a case already in the trash.                                          |
 | 409  | `CROSS_PROJECT`        | Directory or case moved/created under a parent that belongs to a different project.                      |
+| 401  | `UNAUTHENTICATED`      | Protected route with a missing, expired, or unknown session cookie.                                      |
+| 401  | `INVALID_CREDENTIALS`  | `POST /auth/login` when the email is unknown or the password does not match.                             |
+| 403  | `FORBIDDEN`            | Valid session, but the user's role cannot perform the action (PLAN-v1.1 §4).                             |
+| 403  | `USER_DEACTIVATED`     | `POST /auth/login` for a deactivated account. Wrong password on that account is still `INVALID_CREDENTIALS`. |
+| 409  | `EMAIL_TAKEN`          | `POST /users` (or email change, if added later) when that lowercased email already exists.               |
 | 503  | `DATABASE_UNAVAILABLE` | Health check cannot reach Postgres.                                                                      |
 | 500  | `INTERNAL_ERROR`       | Unexpected server failure.                                                                               |
 
@@ -202,11 +216,65 @@ A case may have zero steps.
   envelope (`NOT_FOUND`), not Next.js HTML.
 - Create endpoints return **201** and a `Location` header pointing at the
   resource (`/api/v1/projects/1`, `/api/v1/directories/4`,
-  `/api/v1/test-cases/11`).
+  `/api/v1/test-cases/11`, `/api/v1/users/2`). Revert returns **201** with
+  `Location` pointing at the case (`/api/v1/test-cases/:id`).
 - Single-resource deletes of projects and permanently-deleted cases return
   **204** with an empty body. Directory delete returns **200** with counts
   (the UI toast needs them). Soft-delete returns **200** with the trashed
-  case.
+  case. Logout and change-password return **204**.
+
+### 1.10 Authentication
+
+**Public (no session):**
+
+- `POST /api/v1/auth/login`
+- `GET /api/v1/health`
+
+**Everything else** under `/api/v1` — including unknown paths and
+`POST /auth/logout` — requires a valid session. Missing, expired, or unknown
+cookie → **401 `UNAUTHENTICATED`**.
+Deactivated users cannot keep a session: a request with a cookie whose user
+is deactivated is **401 `UNAUTHENTICATED`** (logout is implied). Pages outside
+`/api/v1` follow the same rule at the UI layer (`/login` is the only public
+page).
+
+**Cookie**
+
+| Trait | Value |
+| --- | --- |
+| Name | `opentcm_session` |
+| Value | opaque token (not the stored `sessions.token_hash`; the server stores SHA-256 of this value) |
+| Flags | `HttpOnly`; `SameSite=Lax`; `Path=/`; `Secure` when env `HTTPS=true` |
+| Lifetime | 7 days (`Max-Age=604800`) from the last authenticated request (**sliding**). Login sets the cookie; each authenticated API request may refresh `expires_at` and re-send `Set-Cookie`. Logout deletes the session row and clears the cookie (`Max-Age=0`). |
+
+Clients that call the API from the browser must send credentials (`fetch` with
+`credentials: "include"`). There is no `Authorization` header in v1.1.
+
+Per-endpoint **Errors** lists in §2–§5 and §6 omit the global **401
+`UNAUTHENTICATED`** and role **403 `FORBIDDEN`** unless a specific role rule
+is the interesting case. Those two codes still apply.
+
+### 1.11 Roles
+
+Instance-wide (every logged-in user can **read** every project). Matrix:
+
+| Capability | Viewer | Member | Admin |
+| --- | --- | --- | --- |
+| Log in / out, `GET /auth/me`, change own password | yes | yes | yes |
+| Read projects, tree, cases, trash, **history** | yes | yes | yes |
+| Create / edit / move / trash / restore cases | no | yes | yes |
+| **Revert** a case to a history snapshot | no | yes | yes |
+| Directory create / rename / move / delete | no | yes | yes |
+| Bulk trash / bulk restore | no | yes | yes |
+| Permanent purge | no | no | yes |
+| Create / rename / delete projects, change prefix | no | no | yes |
+| `GET/POST /users`, `PATCH /users/:id` | no | no | yes |
+
+Forbidden actions return **403 `FORBIDDEN`**. Unauthenticated is **401** first
+(do not leak whether a case id exists to an anonymous caller). Viewers hitting
+write endpoints use the same 404-vs-403 pattern as today for missing vs
+wrong-project once authenticated: unknown id stays **404**; known id they
+cannot mutate is **403**.
 
 ---
 
@@ -874,6 +942,8 @@ exists but is active). No partial deletes.
 ### `GET /api/v1/health`
 
 Deploy/readiness check. Performs a trivial DB round-trip (`SELECT 1`).
+**Unauthenticated** — Docker HEALTHCHECK and load balancers must keep working
+without a session cookie.
 
 **Success `200`**
 
@@ -894,7 +964,380 @@ Deploy/readiness check. Performs a trivial DB round-trip (`SELECT 1`).
 
 ---
 
-## 7. Resource shapes (summary)
+## 7. Auth
+
+Cookie details: §1.10. Password hashes are never returned.
+
+### `POST /api/v1/auth/login`
+
+**Public.** Email is trimmed and lowercased. Password is trimmed; minimum 8
+characters (shorter → `400 VALIDATION_ERROR`, not `INVALID_CREDENTIALS`).
+
+**Body**
+
+```json
+{ "email": "ada@opentcm.local", "password": "correct-horse" }
+```
+
+**Success `200`** — body plus `Set-Cookie: opentcm_session=…` (flags in §1.10).
+Creates a `sessions` row. Sliding expiry starts now.
+
+```json
+{
+  "user": {
+    "id": 1,
+    "email": "ada@opentcm.local",
+    "displayName": "Ada Lovelace",
+    "role": "admin",
+    "deactivatedAt": null,
+    "createdAt": "2026-08-01T09:00:00.000Z",
+    "updatedAt": "2026-08-28T12:00:00.000Z"
+  }
+}
+```
+
+**Errors**
+
+```json
+{
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Email or password is incorrect."
+  }
+}
+```
+
+```json
+{
+  "error": {
+    "code": "USER_DEACTIVATED",
+    "message": "This account has been deactivated."
+  }
+}
+```
+
+Unknown email and wrong password both use `INVALID_CREDENTIALS` (do not leak
+whether the email exists). If the password is correct but `deactivatedAt` is
+set, the response is `403 USER_DEACTIVATED` and **no** session is created.
+
+---
+
+### `POST /api/v1/auth/logout`
+
+**Any authenticated role.** Deletes the session row for this cookie and
+clears `opentcm_session` (`Set-Cookie` with `Max-Age=0`).
+
+**Success `204`** — empty body.
+
+**Errors:** `401 UNAUTHENTICATED` (missing, expired, or unknown cookie). Extra
+JSON keys on a body are `400 VALIDATION_ERROR` if a body is sent; clients
+should send an empty POST.
+
+---
+
+### `GET /api/v1/auth/me`
+
+**Any authenticated role.** Current user from the session.
+
+**Success `200`** — same `{ "user": User }` envelope as login.
+
+**Errors:** `401 UNAUTHENTICATED`.
+
+---
+
+### `POST /api/v1/auth/password`
+
+**Any authenticated role.** Change the caller's own password. Does **not**
+invalidate other sessions in v1.1.
+
+**Body**
+
+```json
+{ "currentPassword": "correct-horse", "newPassword": "new-correct-horse" }
+```
+
+**Success `204`** — empty body.
+
+**Errors:** `400 VALIDATION_ERROR` (too-short new password), `401
+UNAUTHENTICATED`,
+
+```json
+{
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Current password is incorrect."
+  }
+}
+```
+
+Admins set **someone else's** password with `PATCH /users/:id` (`password`
+field), not this route.
+
+---
+
+## 8. Users (Admin)
+
+No public registration. List is not paginated (instances have a handful of
+users). Sorted by `email` ascending. Deactivated users are included.
+
+### `GET /api/v1/users`
+
+**Admin.**
+
+**Success `200`**
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "email": "ada@opentcm.local",
+      "displayName": "Ada Lovelace",
+      "role": "admin",
+      "deactivatedAt": null,
+      "createdAt": "2026-08-01T09:00:00.000Z",
+      "updatedAt": "2026-08-28T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Errors:** `401 UNAUTHENTICATED`, `403 FORBIDDEN` (Member/Viewer).
+
+---
+
+### `POST /api/v1/users`
+
+**Admin.** Creates an account. Email is stored lowercased. The temporary
+password is the only time the server sees it in plaintext besides login /
+password-change.
+
+**Body**
+
+```json
+{
+  "email": "charles@opentcm.local",
+  "displayName": "Charles Babbage",
+  "role": "member",
+  "password": "temporary-password"
+}
+```
+
+`role` is `admin` | `member` | `viewer`.
+
+**Success `201`** — full `User`. `Location: /api/v1/users/:id`.
+`deactivatedAt` is `null`.
+
+**Errors:** `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `403 FORBIDDEN`,
+
+```json
+{
+  "error": {
+    "code": "EMAIL_TAKEN",
+    "message": "A user with that email already exists."
+  }
+}
+```
+
+`EMAIL_TAKEN` is case-insensitive (`Ada@…` vs `ada@…`).
+
+---
+
+### `PATCH /api/v1/users/:id`
+
+**Admin.** At least one field required. Omitted fields are unchanged.
+
+**Body (any non-empty subset)**
+
+```json
+{
+  "displayName": "Ada L.",
+  "role": "admin",
+  "deactivatedAt": "2026-08-29T09:00:00.000Z",
+  "password": "new-temporary-password"
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `displayName` | New display name (1–80 trimmed). History events already written keep the old denormalized name. |
+| `role` | `admin` \| `member` \| `viewer` |
+| `deactivatedAt` | ISO-8601 timestamp → deactivate (store this instant). `null` → reactivate. Omit → leave as-is. |
+| `password` | Set a new password for this user. Does not invalidate existing sessions in v1.1. |
+
+**Success `200`** — full `User`.
+
+**Errors:** `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `403 FORBIDDEN`,
+`404 NOT_FOUND`, `409 EMAIL_TAKEN` (not applicable unless email becomes
+patchable later — v1.1 does **not** change email),
+
+```json
+{
+  "error": {
+    "code": "CONFLICT",
+    "message": "Cannot deactivate or demote the last remaining Admin."
+  }
+}
+```
+
+Last-Admin protection (A2): cannot set `deactivatedAt` to a timestamp, and
+cannot change `role` away from `admin`, when this user is the only remaining
+active Admin (including “cannot deactivate yourself if you are the last
+Admin”). Reactivating a user is always allowed.
+
+---
+
+## 9. Case history and revert
+
+Append-only timeline per test case (PLAN-v1.1 §5). Events are never updated
+or deleted by a revert. Permanent purge of a case **CASCADE**-deletes its
+events.
+
+Every successful case mutation (create, PUT, move, trash, restore, revert,
+and **each** case in bulk trash/restore) inserts one event in the **same
+transaction**. A successful mutation without a history row is a bug. Seeded
+WEB/API cases start with **zero** events until someone mutates them while
+logged in.
+
+`snapshot` is the **full case state immediately after** the event applied:
+
+```json
+{
+  "title": "Login with valid credentials",
+  "description": "Happy-path login for a verified shopper.",
+  "directoryId": 2,
+  "steps": [
+    {
+      "action": "Open `/login`.",
+      "expectedResult": "The email and password fields are empty. The **Sign in** button is disabled."
+    }
+  ],
+  "deletedAt": null
+}
+```
+
+Snapshot steps have `action` + `expectedResult` only (no `id`, no
+`position`; array order is position). `deletedAt` is `null` when the case is
+active after this event.
+
+`actorEmail` and `actorDisplayName` are copied at write time so a later
+rename does not rewrite history. `actorId` remains the stable user id
+(`ON DELETE RESTRICT`).
+
+### `GET /api/v1/test-cases/:id/events`
+
+**Any authenticated role** (Viewer included). Oldest → newest.
+
+Query: optional `limit` (integer 1–500, default **500**). If the case has
+more than `limit` events, the **most recent** `limit` events are returned,
+still ordered oldest → newest within that window.
+
+Returns trashed cases' history as well (same as GET-by-id). Unknown case →
+`404 NOT_FOUND`.
+
+**Success `200`**
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "testCaseId": 1,
+      "actorId": 1,
+      "actorEmail": "ada@opentcm.local",
+      "actorDisplayName": "Ada Lovelace",
+      "action": "created",
+      "revertedEventId": null,
+      "snapshot": {
+        "title": "Login with valid credentials",
+        "description": "Happy-path login for a verified shopper.",
+        "directoryId": 2,
+        "steps": [
+          {
+            "action": "Open `/login`.",
+            "expectedResult": "The email and password fields are empty. The **Sign in** button is disabled."
+          }
+        ],
+        "deletedAt": null
+      },
+      "createdAt": "2026-08-01T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+`action` is `created` | `updated` | `moved` | `trashed` | `restored` |
+`reverted`. `revertedEventId` is set only when `action` is `reverted`; it
+points at the event whose snapshot was restored (must be the same
+`testCaseId`, enforced in application code).
+
+**Errors:** `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `404 NOT_FOUND`.
+
+Contract fixtures (`createFixtures().caseEvents`) include the product-owner
+timeline on WEB-1: snapshots **A, B, C, A** — create, two updates, then
+revert of C back to A. The fourth event has `action: "reverted"`,
+`revertedEventId` equal to the first event's id, and a snapshot
+deep-equal to the first.
+
+---
+
+### `POST /api/v1/test-cases/:id/revert`
+
+**Member+.** Restore the snapshot of `eventId` as the current case (title,
+description, directory, steps, and `deletedAt`) and **append** a new event
+with `action: "reverted"`. Events A, B, and C are not deleted or rewritten.
+If the case went A → B → C and the client reverts to A, history is
+**A → B → C → A**. Reverting a revert is allowed.
+
+**Body**
+
+```json
+{ "eventId": 1 }
+```
+
+**Success `201`** — the new event plus the case after restore.
+`Location: /api/v1/test-cases/:id`.
+
+```json
+{
+  "event": {
+    "id": 4,
+    "testCaseId": 1,
+    "actorId": 1,
+    "actorEmail": "ada@opentcm.local",
+    "actorDisplayName": "Ada Lovelace",
+    "action": "reverted",
+    "revertedEventId": 1,
+    "snapshot": {},
+    "createdAt": "2026-08-29T09:00:00.000Z"
+  },
+  "case": {}
+}
+```
+
+(`snapshot` and `case` are full objects; `{}` above is a placeholder. See
+GET events and GET-by-id for shapes. The reverted event's `snapshot`
+deep-equals the target event's `snapshot`.)
+
+**Errors:** `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `403 FORBIDDEN`
+(Viewer), `404 NOT_FOUND` (unknown case, **or** unknown `eventId`),
+
+```json
+{
+  "error": {
+    "code": "CONFLICT",
+    "message": "Event 9 does not belong to test case 1."
+  }
+}
+```
+
+Wrong-case `eventId` (the event exists but `testCaseId` differs) is **409
+`CONFLICT`**. Revert is allowed on a trashed case (the restored snapshot
+decides whether the case stays trashed).
+
+---
+
+## 10. Resource shapes (summary)
 
 These match `src/lib/contracts/`. Field names are camelCase in JSON.
 
@@ -914,31 +1357,54 @@ These match `src/lib/contracts/`. Field names are camelCase in JSON.
 `rootCaseCount`, `trashCount`, `directories[]` (recursive `TreeNode`: `id`,
 `name`, `parentId`, `activeCaseCount`, `children[]`)
 
+**User** — `id`, `email`, `displayName`, `role` (`admin` \| `member` \|
+`viewer`), `deactivatedAt` (`null` = can log in), `createdAt`, `updatedAt`.
+Never includes `password` / `passwordHash`.
+
+**SessionUserResponse** — `{ user: User }` (login and me)
+
+**TestCaseEvent** — `id`, `testCaseId`, `actorId`, `actorEmail`,
+`actorDisplayName`, `action`, `revertedEventId`, `snapshot`
+(`title`, `description`, `directoryId`, `steps[]` of `{ action,
+expectedResult }`, `deletedAt`), `createdAt` (no `updatedAt`; events are
+immutable)
+
+**RevertTestCaseResponse** — `{ event: TestCaseEvent, case: TestCase }`
+
 ---
 
-## 8. Endpoint index
+## 11. Endpoint index
 
-| Method   | Path                                       | Success                       |
-| -------- | ------------------------------------------ | ----------------------------- |
-| `GET`    | `/api/v1/projects`                         | 200 `{ items }`               |
-| `POST`   | `/api/v1/projects`                         | 201 `Project`                 |
-| `PATCH`  | `/api/v1/projects/:id`                     | 200 `Project`                 |
-| `DELETE` | `/api/v1/projects/:id`                     | 204                           |
-| `GET`    | `/api/v1/projects/:id/tree`                | 200 `ProjectTree`             |
-| `POST`   | `/api/v1/directories`                      | 201 `Directory`               |
-| `PATCH`  | `/api/v1/directories/:id`                  | 200 `Directory`               |
-| `DELETE` | `/api/v1/directories/:id?mode=`            | 200 `DirectoryDeleteResponse` |
-| `GET`    | `/api/v1/test-cases`                       | 200 paginated summaries       |
-| `POST`   | `/api/v1/test-cases`                       | 201 `TestCase`                |
-| `GET`    | `/api/v1/test-cases/:id`                   | 200 `TestCase`                |
-| `GET`    | `/api/v1/test-cases/number/:displayNumber` | 200 `TestCase`                |
-| `PUT`    | `/api/v1/test-cases/:id`                   | 200 `TestCase`                |
-| `PATCH`  | `/api/v1/test-cases/:id/move`              | 200 `TestCase`                |
-| `DELETE` | `/api/v1/test-cases/:id`                   | 200 `TestCase` (trashed)      |
-| `POST`   | `/api/v1/test-cases/bulk-trash`            | 200 `{ count }`               |
-| `GET`    | `/api/v1/projects/:id/trash`               | 200 paginated summaries       |
-| `POST`   | `/api/v1/test-cases/:id/restore`           | 200 `TestCase`                |
-| `POST`   | `/api/v1/test-cases/bulk-restore`          | 200 `{ count }`               |
-| `DELETE` | `/api/v1/test-cases/:id/permanent`         | 204                           |
-| `POST`   | `/api/v1/projects/:id/trash/purge`         | 200 `{ count }`               |
-| `GET`    | `/api/v1/health`                           | 200 `{ status, database }`    |
+| Method   | Path                                       | Auth                         | Success                              |
+| -------- | ------------------------------------------ | ---------------------------- | ------------------------------------ |
+| `POST`   | `/api/v1/auth/login`                       | public                       | 200 `{ user }` + Set-Cookie          |
+| `POST`   | `/api/v1/auth/logout`                      | any auth                     | 204                                  |
+| `GET`    | `/api/v1/auth/me`                          | any auth                     | 200 `{ user }`                       |
+| `POST`   | `/api/v1/auth/password`                    | any auth                     | 204                                  |
+| `GET`    | `/api/v1/users`                            | Admin                        | 200 `{ items }`                      |
+| `POST`   | `/api/v1/users`                            | Admin                        | 201 `User`                           |
+| `PATCH`  | `/api/v1/users/:id`                        | Admin                        | 200 `User`                           |
+| `GET`    | `/api/v1/projects`                         | any auth                     | 200 `{ items }`                      |
+| `POST`   | `/api/v1/projects`                         | Admin                        | 201 `Project`                        |
+| `PATCH`  | `/api/v1/projects/:id`                     | Admin                        | 200 `Project`                        |
+| `DELETE` | `/api/v1/projects/:id`                     | Admin                        | 204                                  |
+| `GET`    | `/api/v1/projects/:id/tree`                | any auth                     | 200 `ProjectTree`                    |
+| `POST`   | `/api/v1/directories`                      | Member+                      | 201 `Directory`                      |
+| `PATCH`  | `/api/v1/directories/:id`                  | Member+                      | 200 `Directory`                      |
+| `DELETE` | `/api/v1/directories/:id?mode=`            | Member+                      | 200 `DirectoryDeleteResponse`        |
+| `GET`    | `/api/v1/test-cases`                       | any auth                     | 200 paginated summaries              |
+| `POST`   | `/api/v1/test-cases`                       | Member+                      | 201 `TestCase`                       |
+| `GET`    | `/api/v1/test-cases/:id`                   | any auth                     | 200 `TestCase`                       |
+| `GET`    | `/api/v1/test-cases/number/:displayNumber` | any auth                     | 200 `TestCase`                       |
+| `PUT`    | `/api/v1/test-cases/:id`                   | Member+                      | 200 `TestCase`                       |
+| `PATCH`  | `/api/v1/test-cases/:id/move`              | Member+                      | 200 `TestCase`                       |
+| `DELETE` | `/api/v1/test-cases/:id`                   | Member+                      | 200 `TestCase` (trashed)             |
+| `POST`   | `/api/v1/test-cases/bulk-trash`            | Member+                      | 200 `{ count }`                      |
+| `GET`    | `/api/v1/test-cases/:id/events`            | any auth                     | 200 `{ items }` (oldest-first)       |
+| `POST`   | `/api/v1/test-cases/:id/revert`            | Member+                      | 201 `{ event, case }`                |
+| `GET`    | `/api/v1/projects/:id/trash`               | any auth                     | 200 paginated summaries              |
+| `POST`   | `/api/v1/test-cases/:id/restore`           | Member+                      | 200 `TestCase`                       |
+| `POST`   | `/api/v1/test-cases/bulk-restore`          | Member+                      | 200 `{ count }`                      |
+| `DELETE` | `/api/v1/test-cases/:id/permanent`         | Admin                        | 204                                  |
+| `POST`   | `/api/v1/projects/:id/trash/purge`         | Admin                        | 200 `{ count }`                      |
+| `GET`    | `/api/v1/health`                           | public                       | 200 `{ status, database }`           |

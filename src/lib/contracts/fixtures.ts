@@ -1,17 +1,26 @@
 import type { Directory, ProjectTree, TreeNode } from "./directories";
+import type { CaseEventSnapshot, TestCaseEvent } from "./events";
 import type { Project } from "./projects";
 import type { TestCase, TestCaseSummary } from "./test-cases";
+import type { User } from "./users";
 
 const CREATED = "2026-08-01T09:00:00.000Z";
 const UPDATED = "2026-08-20T16:45:00.000Z";
 const RECENT = "2026-08-28T12:00:00.000Z";
 const TRASHED_AT = "2026-08-27T18:30:00.000Z";
+const DEACTIVATED_AT = "2026-08-26T10:00:00.000Z";
+const EVENT_B_AT = "2026-08-28T13:00:00.000Z";
+const EVENT_C_AT = "2026-08-28T15:00:00.000Z";
+const EVENT_D_AT = "2026-08-29T09:00:00.000Z";
 
 export type ContractFixtures = {
   projects: Project[];
   directories: Directory[];
   testCases: TestCase[];
   trees: Record<number, ProjectTree>;
+  users: User[];
+  /** WEB-1 timeline whose snapshots are A, B, C, A (revert of C to A). */
+  caseEvents: TestCaseEvent[];
 };
 
 function displayNumber(prefix: string, caseNumber: number): string {
@@ -65,6 +74,19 @@ function buildTree(
     rootCaseCount: active.filter((c) => c.directoryId === null).length,
     trashCount: trashed.length,
     directories: childrenOf(null),
+  };
+}
+
+function snapshotOf(testCase: TestCase): CaseEventSnapshot {
+  return {
+    title: testCase.title,
+    description: testCase.description,
+    directoryId: testCase.directoryId,
+    steps: testCase.steps.map((item) => ({
+      action: item.action,
+      expectedResult: item.expectedResult,
+    })),
+    deletedAt: testCase.deletedAt,
   };
 }
 
@@ -200,6 +222,8 @@ function regressionSteps() {
  * - a 22-step case
  * - a zero-step draft
  * - three trashed cases
+ * - three roles plus a deactivated Member
+ * - a four-event WEB-1 timeline whose snapshots are A, B, C, A
  */
 export function createFixtures(): ContractFixtures {
   const projects: Project[] = [
@@ -684,6 +708,107 @@ export function createFixtures(): ContractFixtures {
     }),
   ];
 
+  const users: User[] = [
+    {
+      id: 1,
+      email: "ada@opentcm.local",
+      displayName: "Ada Lovelace",
+      role: "admin",
+      deactivatedAt: null,
+      createdAt: CREATED,
+      updatedAt: RECENT,
+    },
+    {
+      id: 2,
+      email: "charles@opentcm.local",
+      displayName: "Charles Babbage",
+      role: "member",
+      deactivatedAt: null,
+      createdAt: CREATED,
+      updatedAt: UPDATED,
+    },
+    {
+      id: 3,
+      email: "grace@opentcm.local",
+      displayName: "Grace Hopper",
+      role: "viewer",
+      deactivatedAt: null,
+      createdAt: CREATED,
+      updatedAt: CREATED,
+    },
+    {
+      id: 4,
+      email: "retired@opentcm.local",
+      displayName: "Retired Member",
+      role: "member",
+      deactivatedAt: DEACTIVATED_AT,
+      createdAt: CREATED,
+      updatedAt: DEACTIVATED_AT,
+    },
+  ];
+
+  const ada = users[0];
+  const charles = users[1];
+  const web1 = testCases[0];
+  const snapshotA = snapshotOf(web1);
+  const snapshotB: CaseEventSnapshot = {
+    ...snapshotA,
+    title: "Login with valid credentials — shopper",
+  };
+  const snapshotC: CaseEventSnapshot = {
+    ...snapshotB,
+    description:
+      "Second edit: shopper login after the title change. Revert target is still the original created snapshot.",
+  };
+  const snapshotD: CaseEventSnapshot = structuredClone(snapshotA);
+
+  const caseEvents: TestCaseEvent[] = [
+    {
+      id: 1,
+      testCaseId: web1.id,
+      actorId: ada.id,
+      actorEmail: ada.email,
+      actorDisplayName: ada.displayName,
+      action: "created",
+      revertedEventId: null,
+      snapshot: snapshotA,
+      createdAt: CREATED,
+    },
+    {
+      id: 2,
+      testCaseId: web1.id,
+      actorId: charles.id,
+      actorEmail: charles.email,
+      actorDisplayName: charles.displayName,
+      action: "updated",
+      revertedEventId: null,
+      snapshot: snapshotB,
+      createdAt: EVENT_B_AT,
+    },
+    {
+      id: 3,
+      testCaseId: web1.id,
+      actorId: charles.id,
+      actorEmail: charles.email,
+      actorDisplayName: charles.displayName,
+      action: "updated",
+      revertedEventId: null,
+      snapshot: snapshotC,
+      createdAt: EVENT_C_AT,
+    },
+    {
+      id: 4,
+      testCaseId: web1.id,
+      actorId: ada.id,
+      actorEmail: ada.email,
+      actorDisplayName: ada.displayName,
+      action: "reverted",
+      revertedEventId: 1,
+      snapshot: snapshotD,
+      createdAt: EVENT_D_AT,
+    },
+  ];
+
   return {
     projects,
     directories,
@@ -692,6 +817,8 @@ export function createFixtures(): ContractFixtures {
       [web.id]: buildTree(web, directories, testCases),
       [api.id]: buildTree(api, directories, testCases),
     },
+    users,
+    caseEvents,
   };
 }
 
