@@ -7,6 +7,7 @@ import { POST as CHANGE_PASSWORD } from "@/app/api/v1/auth/password/route";
 import { GET as HEALTH } from "@/app/api/v1/health/route";
 import { bootstrapAdminIfEmpty } from "@/lib/api/auth";
 import { hashPassword } from "@/lib/api/password";
+import { resolveSessionFromToken } from "@/lib/api/session";
 import {
   cookieCleared,
   invoke,
@@ -202,6 +203,11 @@ describe("POST /api/v1/auth/login", () => {
       [created.id],
     );
     expect(rows[0].n).toBe(1);
+  });
+
+  it("resolveSessionFromToken rejects missing and garbage tokens", async () => {
+    expect(await resolveSessionFromToken(undefined)).toBeNull();
+    expect(await resolveSessionFromToken("not-a-real-session")).toBeNull();
   });
 
   it("returns 401 INVALID_CREDENTIALS for a wrong password", async () => {

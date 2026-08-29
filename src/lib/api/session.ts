@@ -111,13 +111,14 @@ function unauthenticated(): never {
 }
 
 /**
- * Resolve a valid, non-expired session for the request cookie.
- * Deactivated users are treated as logged out (session row deleted, 401).
+ * Resolve a valid, non-expired session from the opaque cookie token.
+ * Expired or deactivated sessions are deleted. Returns null when unauthenticated.
  */
-export async function requireSession(request: Request): Promise<AuthSession> {
-  const token = readSessionToken(request);
+export async function resolveSessionFromToken(
+  token: string | undefined,
+): Promise<AuthSession | null> {
   if (!token) {
-    unauthenticated();
+    return null;
   }
 
   const tokenHash = hashToken(token);
@@ -132,17 +133,17 @@ export async function requireSession(request: Request): Promise<AuthSession> {
     .limit(1);
 
   if (!row) {
-    unauthenticated();
+    return null;
   }
 
   if (row.session.expiresAt.getTime() <= Date.now()) {
     await destroySession(row.session.id);
-    unauthenticated();
+    return null;
   }
 
   if (row.user.deactivatedAt) {
     await destroySession(row.session.id);
-    unauthenticated();
+    return null;
   }
 
   return {
@@ -150,6 +151,18 @@ export async function requireSession(request: Request): Promise<AuthSession> {
     token,
     user: serializeUser(row.user),
   };
+}
+
+/**
+ * Resolve a valid, non-expired session for the request cookie.
+ * Deactivated users are treated as logged out (session row deleted, 401).
+ */
+export async function requireSession(request: Request): Promise<AuthSession> {
+  const session = await resolveSessionFromToken(readSessionToken(request));
+  if (!session) {
+    unauthenticated();
+  }
+  return session;
 }
 
 export function sessionCookieHeader(token: string): string {

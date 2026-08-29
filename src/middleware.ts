@@ -17,16 +17,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hasSession = request.cookies.has(SESSION_COOKIE_NAME);
+  const hasSessionCookie = request.cookies.has(SESSION_COOKIE_NAME);
 
   if (isPublicPath(pathname)) {
-    if (pathname === "/login" && hasSession) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
+    // Do not bounce /login away based on cookie presence — the cookie may be
+    // stale. The login page is the only unauthenticated UI.
     return NextResponse.next();
   }
 
-  if (!hasSession) {
+  if (!hasSessionCookie) {
     const loginUrl = new URL("/login", request.url);
     const nextPath = `${pathname}${search}`;
     if (nextPath !== "/") {
@@ -35,7 +34,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-opentcm-path", `${pathname}${search}`);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { LoginForm } from "@/components/auth/login-form";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +14,15 @@ export default function LoginPage() {
             OpenTCM — Open Test Case Manager
           </p>
         </div>
-        <LoginForm />
+        <Suspense
+          fallback={
+            <p className="text-center text-sm text-muted-foreground">
+              Loading sign-in…
+            </p>
+          }
+        >
+          <LoginForm />
+        </Suspense>
         <p className="text-center text-xs text-muted-foreground">
           First-time setup: ask an operator to configure{" "}
           <code className="text-[11px]">BOOTSTRAP_ADMIN_*</code> or run{" "}

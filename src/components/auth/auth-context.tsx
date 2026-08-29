@@ -22,7 +22,13 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  initialUser,
+}: {
+  children: ReactNode;
+  initialUser?: User;
+}) {
   const { data, error, isLoading, refetch } = useAsyncData(
     async () => {
       try {
@@ -32,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     [],
+    initialUser,
   );
 
   const logout = useCallback(async () => {

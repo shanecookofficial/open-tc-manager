@@ -14,10 +14,11 @@ type UseAsyncState<T> = {
 export function useAsyncData<T>(
   fetcher: () => Promise<T>,
   deps: readonly unknown[],
+  initialData?: T,
 ): UseAsyncState<T> {
-  const [data, setData] = useState<T | undefined>();
+  const [data, setData] = useState<T | undefined>(initialData);
   const [error, setError] = useState<ApiClientError | Error | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(initialData === undefined);
   const [reloadToken, setReloadToken] = useState(0);
   const requestSeqRef = useRef(0);
 

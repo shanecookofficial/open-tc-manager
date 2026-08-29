@@ -3,6 +3,23 @@ import { expect, test } from "@playwright/test";
 import { loginViaPage } from "./helpers";
 
 test.describe("Authentication", () => {
+  test("login page is public and does not show case data", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByText("WEB-1")).toHaveCount(0);
+    await expect(page.getByText("Web App")).toHaveCount(0);
+  });
+
+  test("unauthenticated home does not render the app", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "New test case" })).toHaveCount(
+      0,
+    );
+  });
   test("login reaches repository and logout returns to login", async ({
     page,
   }) => {
