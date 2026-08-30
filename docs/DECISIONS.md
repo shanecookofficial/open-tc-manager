@@ -432,3 +432,10 @@ Member/Viewer/custom is `409 ROLE_IN_USE` while anyone still has that
 role; delete/edit of Admin is `409 ROLE_LOCKED`. `users.role` is now a
 slug FK to `roles`. Seed does not recreate Member/Viewer if an Admin
 already deleted them.
+
+---
+
+**2026-08-30 — Header brand is OpenTCM.** Human PO: the top-left product
+name should be **OpenTCM**, not “OpenTCM — Open Test Case Manager”. Docs,
+README, and the browser tab title still use the long form. The login page
+subtitle is unchanged (it is not the header).

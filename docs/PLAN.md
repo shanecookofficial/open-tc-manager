@@ -3,7 +3,9 @@
 **Name:** OpenTCM — **Open Test Case Manager**. The name is final per the product
 owner. A research tool shares the acronym ([arXiv:2504.20118](https://arxiv.org/abs/2504.20118));
 this is a non-commercial open-source project in a different domain, and the README and
-all user-facing surfaces spell out "Open Test Case Manager" to avoid confusion.
+docs, README, and the browser tab title spell out "Open Test Case Manager"
+to avoid confusion. The in-app header brand is **OpenTCM** only
+(2026-08-30).
 **Status:** v1 as specified here is implemented in **0.1.0** (pending the
 `v0.1.0` git tag; see `CHANGELOG.md` and `RELEASING.md`). This document remains
 the source of truth for scope and architecture.

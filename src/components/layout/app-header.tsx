@@ -27,7 +27,7 @@ export function AppHeader({
           href="/"
           className="truncate text-sm font-semibold hover:underline"
         >
-          OpenTCM — Open Test Case Manager
+          OpenTCM
         </Link>
       </div>
       {showProjectSwitcher ? (
