@@ -16,6 +16,7 @@ function user(role: string, permissions: string[] = []): User {
     role,
     permissions: permissions as User["permissions"],
     deactivatedAt: null,
+    mustSetupAccount: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };

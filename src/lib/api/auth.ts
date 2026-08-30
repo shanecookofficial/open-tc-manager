@@ -5,6 +5,7 @@ import {
   passwordSchema,
   type ChangePasswordBody,
   type LoginBody,
+  type SetupAdminBody,
   type User,
 } from "@/lib/contracts";
 import { db, users } from "@/lib/db";
@@ -13,6 +14,7 @@ import { resolveBootstrapCredentials } from "@/lib/auth/bootstrap-credentials";
 
 import { ApiError } from "./errors";
 import { hashPassword, verifyPassword } from "./password";
+import { isUniqueViolation } from "./pg-errors";
 import { ensureBuiltInRoles, getRoleBySlug } from "./role-records";
 import { serializeUser } from "./serialize";
 import {
@@ -63,6 +65,7 @@ export async function bootstrapAdminIfEmpty(): Promise<BootstrapResult> {
       displayName: "Admin",
       passwordHash: await hashPassword(password),
       role: "admin",
+      mustSetupAccount: true,
     });
 
     return "created";
@@ -133,4 +136,70 @@ export async function changeOwnPassword(
       updatedAt: new Date(),
     })
     .where(eq(users.id, userId));
+}
+
+/**
+ * Replace temporary bootstrap credentials with the operator's admin account.
+ * Same user row (history actor_id stays stable). Requires `mustSetupAccount`.
+ */
+export async function completeAdminSetup(
+  userId: number,
+  body: SetupAdminBody,
+): Promise<User> {
+  const [row] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!row) {
+    throw new ApiError("UNAUTHENTICATED", "Sign in to continue.");
+  }
+  if (!row.mustSetupAccount) {
+    throw new ApiError(
+      "FORBIDDEN",
+      "Admin setup is not required for this account.",
+    );
+  }
+  if (body.email === row.email) {
+    throw new ApiError(
+      "VALIDATION_ERROR",
+      "Use a new email for this admin account.",
+    );
+  }
+  if (await verifyPassword(row.passwordHash, body.password)) {
+    throw new ApiError(
+      "VALIDATION_ERROR",
+      "Choose a password that is not the temporary one.",
+    );
+  }
+
+  try {
+    const [updated] = await db
+      .update(users)
+      .set({
+        email: body.email,
+        displayName: body.displayName,
+        passwordHash: await hashPassword(body.password),
+        mustSetupAccount: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    if (!updated) {
+      throw new ApiError("UNAUTHENTICATED", "Sign in to continue.");
+    }
+    const role = await getRoleBySlug(updated.role);
+    return serializeUser(updated, role);
+  } catch (error) {
+    if (
+      isUniqueViolation(error, "users_email_unique") ||
+      isUniqueViolation(error, "users_email_lower_unique")
+    ) {
+      throw new ApiError(
+        "EMAIL_TAKEN",
+        "A user with that email already exists.",
+      );
+    }
+    throw error;
+  }
 }

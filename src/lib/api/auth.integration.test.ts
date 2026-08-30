@@ -4,7 +4,9 @@ import { POST as LOGIN } from "@/app/api/v1/auth/login/route";
 import { POST as LOGOUT } from "@/app/api/v1/auth/logout/route";
 import { GET as ME } from "@/app/api/v1/auth/me/route";
 import { POST as CHANGE_PASSWORD } from "@/app/api/v1/auth/password/route";
+import { POST as SETUP_ADMIN } from "@/app/api/v1/auth/setup-admin/route";
 import { GET as HEALTH } from "@/app/api/v1/health/route";
+import { GET as PROJECTS } from "@/app/api/v1/projects/route";
 import {
   DEV_BOOTSTRAP_ADMIN_EMAIL,
   DEV_BOOTSTRAP_ADMIN_PASSWORD,
@@ -161,6 +163,7 @@ describe("bootstrap Admin", () => {
       const body = sessionUserResponseSchema.parse(result.json);
       expect(body.user.email).toBe(email);
       expect(body.user.role).toBe("admin");
+      expect(body.user.mustSetupAccount).toBe(true);
     } finally {
       if (previousEmail === undefined) {
         delete process.env.BOOTSTRAP_ADMIN_EMAIL;
@@ -239,8 +242,120 @@ describe("bootstrap Admin", () => {
         DEV_BOOTSTRAP_ADMIN_PASSWORD,
       );
       expect(result.status).toBe(200);
+      expect(
+        sessionUserResponseSchema.parse(result.json).user.mustSetupAccount,
+      ).toBe(true);
     } finally {
       setNodeEnv(previousNodeEnv);
+      if (previousEmail === undefined) {
+        delete process.env.BOOTSTRAP_ADMIN_EMAIL;
+      } else {
+        process.env.BOOTSTRAP_ADMIN_EMAIL = previousEmail;
+      }
+      if (previousPassword === undefined) {
+        delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
+      } else {
+        process.env.BOOTSTRAP_ADMIN_PASSWORD = previousPassword;
+      }
+    }
+  });
+});
+
+describe("POST /api/v1/auth/setup-admin", () => {
+  it("blocks the rest of the API until the bootstrap Admin creates an account", async () => {
+    const previousEmail = process.env.BOOTSTRAP_ADMIN_EMAIL;
+    const previousPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+    const bootstrapEmail = uniqueEmail("temp-admin");
+    const bootstrapPassword = "opentcm-admin";
+    process.env.BOOTSTRAP_ADMIN_EMAIL = bootstrapEmail;
+    process.env.BOOTSTRAP_ADMIN_PASSWORD = bootstrapPassword;
+
+    await pool.query("DELETE FROM sessions");
+    await pool.query("DELETE FROM users");
+    createdUserIds.length = 0;
+
+    try {
+      expect(await bootstrapAdminIfEmpty()).toBe("created");
+      const loggedIn = await login(bootstrapEmail, bootstrapPassword);
+      expect(loggedIn.status).toBe(200);
+      const token = sessionTokenFromResponse(loggedIn.headers);
+      expect(token).toBeTruthy();
+      const bootstrapUser = sessionUserResponseSchema.parse(loggedIn.json).user;
+      createdUserIds.push(bootstrapUser.id);
+      expect(bootstrapUser.mustSetupAccount).toBe(true);
+
+      const projects = await invoke(PROJECTS, {
+        path: "/api/v1/projects",
+        cookie: token,
+      });
+      expect(projects.status).toBe(403);
+      expect(errorBodySchema.parse(projects.json).error.code).toBe(
+        "SETUP_REQUIRED",
+      );
+
+      const me = await invoke(ME, { path: "/api/v1/auth/me", cookie: token });
+      expect(me.status).toBe(200);
+
+      const sameEmail = await invoke(SETUP_ADMIN, {
+        method: "POST",
+        path: "/api/v1/auth/setup-admin",
+        cookie: token,
+        body: {
+          email: bootstrapEmail,
+          displayName: "Ada Lovelace",
+          password: "new-admin-password",
+        },
+      });
+      expect(sameEmail.status).toBe(400);
+
+      const samePassword = await invoke(SETUP_ADMIN, {
+        method: "POST",
+        path: "/api/v1/auth/setup-admin",
+        cookie: token,
+        body: {
+          email: uniqueEmail("ada"),
+          displayName: "Ada Lovelace",
+          password: bootstrapPassword,
+        },
+      });
+      expect(samePassword.status).toBe(400);
+
+      const nextEmail = uniqueEmail("ada");
+      const created = await invoke(SETUP_ADMIN, {
+        method: "POST",
+        path: "/api/v1/auth/setup-admin",
+        cookie: token,
+        body: {
+          email: nextEmail,
+          displayName: "Ada Lovelace",
+          password: "new-admin-password",
+        },
+      });
+      expect(created.status).toBe(200);
+      const setupUser = sessionUserResponseSchema.parse(created.json).user;
+      expect(setupUser.email).toBe(nextEmail);
+      expect(setupUser.displayName).toBe("Ada Lovelace");
+      expect(setupUser.mustSetupAccount).toBe(false);
+      expect(setupUser.id).toBe(bootstrapUser.id);
+
+      const after = await invoke(PROJECTS, {
+        path: "/api/v1/projects",
+        cookie: token,
+      });
+      expect(after.status).toBe(200);
+
+      const again = await invoke(SETUP_ADMIN, {
+        method: "POST",
+        path: "/api/v1/auth/setup-admin",
+        cookie: token,
+        body: {
+          email: uniqueEmail("other"),
+          displayName: "Other",
+          password: "another-password",
+        },
+      });
+      expect(again.status).toBe(403);
+    } finally {
       if (previousEmail === undefined) {
         delete process.env.BOOTSTRAP_ADMIN_EMAIL;
       } else {

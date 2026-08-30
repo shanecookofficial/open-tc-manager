@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { AuthProvider } from "@/components/auth/auth-context";
 import { ProjectsProvider } from "@/components/projects/projects-context";
 import { Toaster } from "@/components/ui/sonner";
@@ -11,6 +13,9 @@ export default async function AppLayout({
   children: React.ReactNode;
 }>) {
   const { user } = await requirePageSession();
+  if (user.mustSetupAccount) {
+    redirect("/setup-admin");
+  }
 
   return (
     <AuthProvider initialUser={user}>

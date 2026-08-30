@@ -52,10 +52,11 @@ migrations finished). You do **not** need `db:seed`. A new database gets one
 Admin and no projects or cases.
 
 - **App:** http://localhost:3000 — sign in as `admin@opentcm.io` /
-  `opentcm-admin`, then **Create your first project**. OpenTCM requires
-  authentication (closed/trusted networks). Override `BOOTSTRAP_ADMIN_*` in
-  `.env` if you want a different first Admin; Compose forwards those into the
-  `app` service.
+  `opentcm-admin`. The first sign-in asks you to **create your admin account**
+  (new email and password). Then **Create your first project**. OpenTCM
+  requires authentication (closed/trusted networks). Override
+  `BOOTSTRAP_ADMIN_*` in `.env` if you want a different temporary Admin;
+  Compose forwards those into the `app` service.
 
 `--remove-orphans` drops a leftover Compose `postgres` container from older
 revisions of this file. Your database is whatever you pointed the connectors
@@ -90,8 +91,8 @@ npm run dev
 Open http://localhost:3000.
 
 Sign in as `admin@opentcm.io` / `opentcm-admin` on a new database
-(`NODE_ENV=development` creates that Admin when `users` is empty).
-`npm run db:seed` is optional.
+(`NODE_ENV=development` creates that Admin when `users` is empty), then
+create your real admin account when prompted. `npm run db:seed` is optional.
 
 Use `POSTGRES_HOST=localhost` (or `DATABASE_URL` with `localhost`) when the
 dev server is not in Docker.

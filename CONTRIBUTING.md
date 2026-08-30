@@ -22,7 +22,7 @@ bring-your-own PostgreSQL 16+). Short version:
 cp .env.example .env     # enter connectors for your PostgreSQL 16+ instance
 npm ci
 npm run db:migrate
-npm run dev              # http://localhost:3000 — admin@opentcm.io / opentcm-admin
+npm run dev              # http://localhost:3000 — admin@opentcm.io / opentcm-admin, then create your admin account
 # npm run db:seed        # optional WEB/API demo data (idempotent)
 ```
 

@@ -90,7 +90,8 @@ v1 — validation failures put the field name in `message`.
 | 401  | `INVALID_CREDENTIALS`  | `POST /auth/login` when the email is unknown or the password does not match.                             |
 | 403  | `FORBIDDEN`            | Valid session, but the user's role cannot perform the action (PLAN-v1.1 §4).                             |
 | 403  | `USER_DEACTIVATED`     | `POST /auth/login` for a deactivated account. Wrong password on that account is still `INVALID_CREDENTIALS`. |
-| 409  | `EMAIL_TAKEN`          | `POST /users` (or email change, if added later) when that lowercased email already exists.               |
+| 409  | `EMAIL_TAKEN`          | `POST /users` or `POST /auth/setup-admin` when that lowercased email already exists.                     |
+| 403  | `SETUP_REQUIRED`       | Session is valid but the bootstrap Admin has not created their account yet. Only `/auth/me`, `/auth/logout`, and `/auth/setup-admin` are allowed. |
 | 409  | `ROLE_LOCKED`          | Edit or delete the locked Admin role.                                                                    |
 | 409  | `ROLE_IN_USE`          | Delete a role that still has users.                                                                      |
 | 503  | `DATABASE_UNAVAILABLE` | Health check cannot reach Postgres.                                                                      |
@@ -1000,6 +1001,7 @@ Creates a `sessions` row. Sliding expiry starts now.
     "displayName": "Ada Lovelace",
     "role": "admin",
     "deactivatedAt": null,
+    "mustSetupAccount": false,
     "createdAt": "2026-08-01T09:00:00.000Z",
     "updatedAt": "2026-08-28T12:00:00.000Z"
   }
@@ -1055,6 +1057,36 @@ should send an empty POST.
 
 ---
 
+### `POST /api/v1/auth/setup-admin`
+
+**Authenticated**, and only while `user.mustSetupAccount` is `true` (the
+bootstrap Admin created on first boot). Replaces that user's email, display
+name, and password, then clears the flag. Same user id (history `actor_id`
+does not change). The new email must differ from the temporary one; the new
+password must differ from the temporary password.
+
+**Body**
+
+```json
+{
+  "email": "ada@opentcm.example",
+  "displayName": "Ada Lovelace",
+  "password": "correct-horse"
+}
+```
+
+**Success `200`** — `{ "user": User }` with `mustSetupAccount: false`.
+
+**Errors:** `400 VALIDATION_ERROR` (same email, same password, or schema),
+`401 UNAUTHENTICATED`, `403 FORBIDDEN` (setup already completed),
+`403 SETUP_REQUIRED` is **not** returned here (this route is exempt),
+`409 EMAIL_TAKEN`.
+
+Until setup completes, every other authenticated `/api/v1` route returns
+`403 SETUP_REQUIRED`. HTML app routes redirect to `/setup-admin`.
+
+---
+
 ### `POST /api/v1/auth/password`
 
 **Any authenticated role.** Change the caller's own password. Does **not**
@@ -1105,6 +1137,7 @@ users). Sorted by `email` ascending. Deactivated users are included.
       "displayName": "Ada Lovelace",
       "role": "admin",
       "deactivatedAt": null,
+      "mustSetupAccount": false,
       "createdAt": "2026-08-01T09:00:00.000Z",
       "updatedAt": "2026-08-28T12:00:00.000Z"
     }
@@ -1385,7 +1418,8 @@ These match `src/lib/contracts/`. Field names are camelCase in JSON.
 `name`, `parentId`, `activeCaseCount`, `children[]`)
 
 **User** — `id`, `email`, `displayName`, `role` (slug), optional `roleName`
-and `permissions[]`, `deactivatedAt` (`null` = can log in), `createdAt`,
+and `permissions[]`, `deactivatedAt` (`null` = can log in),
+`mustSetupAccount` (bootstrap Admin must create their account), `createdAt`,
 `updatedAt`. Never includes `password` / `passwordHash`. Admin always
 serializes with every grantable permission.
 
@@ -1411,6 +1445,7 @@ immutable)
 | `POST`   | `/api/v1/auth/login`                       | public                       | 200 `{ user }` + Set-Cookie          |
 | `POST`   | `/api/v1/auth/logout`                      | any auth                     | 204                                  |
 | `GET`    | `/api/v1/auth/me`                          | any auth                     | 200 `{ user }`                       |
+| `POST`   | `/api/v1/auth/setup-admin`                 | any auth (setup only)        | 200 `{ user }`                       |
 | `POST`   | `/api/v1/auth/password`                    | any auth                     | 204                                  |
 | `GET`    | `/api/v1/users`                            | Admin                        | 200 `{ items }`                      |
 | `POST`   | `/api/v1/users`                            | Admin                        | 201 `User`                           |

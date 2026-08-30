@@ -127,8 +127,9 @@ export {
   SESSION_MAX_AGE_SECONDS,
   changePasswordBodySchema,
   loginBodySchema,
+  setupAdminBodySchema,
 } from "./auth";
-export type { ChangePasswordBody, LoginBody } from "./auth";
+export type { ChangePasswordBody, LoginBody, SetupAdminBody } from "./auth";
 
 export {
   createUserBodySchema,

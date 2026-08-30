@@ -36,6 +36,15 @@ export type HandlerOptions = {
   sliding?: boolean;
 };
 
+function isSetupExemptPath(request: Request): boolean {
+  const path = new URL(request.url).pathname;
+  return (
+    path === "/api/v1/auth/me" ||
+    path === "/api/v1/auth/logout" ||
+    path === "/api/v1/auth/setup-admin"
+  );
+}
+
 function parseSchema<T>(schema: z.ZodType<T>, data: unknown): T {
   const result = schema.safeParse(data);
   if (!result.success) {
@@ -119,6 +128,15 @@ export function apiHandler<
       let session: AuthSession | null = null;
       if (auth !== "public") {
         session = await requireSession(request);
+        if (
+          session.user.mustSetupAccount &&
+          !isSetupExemptPath(request)
+        ) {
+          throw new ApiError(
+            "SETUP_REQUIRED",
+            "Create your admin account to continue.",
+          );
+        }
         assertRole(session.user, auth);
       }
 

@@ -20,6 +20,7 @@ export const userSchema = timestampsSchema.extend({
   roleName: z.string().min(1).optional(),
   permissions: z.array(permissionSchema).optional(),
   deactivatedAt: isoDateTimeSchema.nullable(),
+  mustSetupAccount: z.boolean().default(false),
 });
 
 export type User = z.infer<typeof userSchema>;

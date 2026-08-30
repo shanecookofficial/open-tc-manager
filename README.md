@@ -59,7 +59,7 @@ Full instructions (upgrades, backups, demo data, manual Postgres): **[docs/SETUP
 ```bash
 cp .env.example .env       # enter POSTGRES_* or DATABASE_URL
 docker compose up --remove-orphans   # website only; migrate + dev server
-# http://localhost:3000 — admin@opentcm.io / opentcm-admin (empty instance)
+# http://localhost:3000 — admin@opentcm.io / opentcm-admin, then create your admin account
 ```
 
 Or run Next.js on the host (same connectors; use `localhost` for host Postgres):

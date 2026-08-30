@@ -19,7 +19,7 @@ import {
  *
  * Divergences between this file and the checked-in SQL migrations
  * (`drizzle/0000_init.sql`, `drizzle/0001_auth_history.sql`,
- * `drizzle/0002_custom_roles.sql`) that
+ * `drizzle/0002_custom_roles.sql`, `drizzle/0003_must_setup_account.sql`) that
  * drizzle-kit cannot express:
  *
  * 1. `test_steps` UNIQUE(test_case_id, position) is DEFERRABLE INITIALLY
@@ -215,6 +215,7 @@ export const users = pgTable(
       .notNull()
       .references(() => roles.slug, { onDelete: "restrict" }),
     deactivatedAt: timestamptz("deactivated_at"),
+    mustSetupAccount: boolean("must_setup_account").notNull().default(false),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
     updatedAt: timestamptz("updated_at").notNull().defaultNow(),
   },

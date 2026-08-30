@@ -561,8 +561,10 @@ the same `admin@opentcm.local` credentials as a fallback if seed did not run.
 
 1. Open `/login` (unauthenticated visits to any other HTML page **307** here,
    with `next=` for the original path except `/`).
-2. Enter email and password.
-3. After success you land on the repository (or the `next=` path you requested).
+2. Enter the temporary bootstrap email and password.
+3. The first bootstrap sign-in sends you to `/setup-admin` to create your
+   real admin email and password. You cannot use the app until that is done.
+4. After that you land on the repository (or the `next=` path you requested).
 
 Bad password or unknown email: **“Email or password is incorrect.”**
 Deactivated account with the correct password: **“This account has been

@@ -128,6 +128,7 @@ export function serializeUser(row: UserRow, role?: RoleRow | null): User {
     roleName: role?.name ?? roleLabel(row.role),
     permissions,
     deactivatedAt: row.deactivatedAt ? toIso(row.deactivatedAt) : null,
+    mustSetupAccount: row.mustSetupAccount,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
   };

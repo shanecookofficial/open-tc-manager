@@ -221,6 +221,7 @@ describe("contract negative cases", () => {
       "INVALID_CREDENTIALS",
       "USER_DEACTIVATED",
       "EMAIL_TAKEN",
+      "SETUP_REQUIRED",
       "ROLE_LOCKED",
       "ROLE_IN_USE",
     ] as const) {

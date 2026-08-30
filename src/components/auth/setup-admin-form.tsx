@@ -7,41 +7,39 @@ import { useAuth } from "@/components/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiClientError, login } from "@/lib/api-client";
+import { ApiClientError, setupAdmin } from "@/lib/api-client";
 
-export function LoginForm() {
+export function SetupAdminForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refetch } = useAuth();
   const nextPath = searchParams.get("next") ?? "/";
 
   const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setErrorMessage(null);
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const user = await login({ email, password });
+      await setupAdmin({ email, displayName, password });
       refetch();
-      if (user.mustSetupAccount) {
-        const setup =
-          nextPath !== "/"
-            ? `/setup-admin?next=${encodeURIComponent(nextPath)}`
-            : "/setup-admin";
-        router.push(setup);
-      } else {
-        router.push(nextPath.startsWith("/") ? nextPath : "/");
-      }
+      router.push(nextPath.startsWith("/") ? nextPath : "/");
       router.refresh();
     } catch (error) {
       if (error instanceof ApiClientError) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Sign in failed. Try again.");
+        setErrorMessage("Could not create the admin account. Try again.");
       }
     } finally {
       setIsSubmitting(false);
@@ -58,6 +56,17 @@ export function LoginForm() {
           {errorMessage}
         </div>
       ) : null}
+      <div className="space-y-2">
+        <Label htmlFor="displayName">Name</Label>
+        <Input
+          id="displayName"
+          name="displayName"
+          autoComplete="name"
+          required
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+        />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -76,14 +85,28 @@ export function LoginForm() {
           id="password"
           name="password"
           type="password"
-          autoComplete="current-password"
+          autoComplete="new-password"
           required
+          minLength={8}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          required
+          minLength={8}
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+        />
+      </div>
       <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? "Signing in…" : "Sign in"}
+        {isSubmitting ? "Creating account…" : "Create admin account"}
       </Button>
     </form>
   );

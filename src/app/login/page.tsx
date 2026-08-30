@@ -24,10 +24,9 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
         <p className="text-center text-xs text-muted-foreground">
-          New local instance: sign in as{" "}
-          <code className="text-[11px]">admin@opentcm.io</code>. Production
-          first Admin comes from{" "}
-          <code className="text-[11px]">BOOTSTRAP_ADMIN_*</code>.
+          First sign-in uses the temporary Admin, then you create your own
+          account. Local default:{" "}
+          <code className="text-[11px]">admin@opentcm.io</code>.
         </p>
       </div>
     </main>

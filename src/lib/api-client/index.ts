@@ -27,6 +27,7 @@ import {
   type DirectoryDeleteMode,
   type DirectoryDeleteResponse,
   type LoginBody,
+  type SetupAdminBody,
   type MoveTestCaseBody,
   type PatchDirectoryBody,
   type PatchProjectBody,
@@ -83,6 +84,15 @@ async function parseJson<T>(
         window.location.pathname + window.location.search,
       );
       window.location.href = `/login?next=${next}`;
+    }
+    const preview = errorBodySchema.safeParse(body);
+    if (
+      preview.success &&
+      preview.data.error.code === "SETUP_REQUIRED" &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/setup-admin")
+    ) {
+      window.location.href = "/setup-admin";
     }
     const parsed = errorBodySchema.safeParse(body);
     if (parsed.success) {
@@ -147,6 +157,20 @@ export async function logout(): Promise<void> {
 export async function getMe(): Promise<User> {
   const response = await apiFetch("/auth/me");
   const data = await parseJson(response, sessionUserResponseSchema, "/auth/me");
+  return data.user;
+}
+
+export async function setupAdmin(body: SetupAdminBody): Promise<User> {
+  const response = await apiFetch("/auth/setup-admin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await parseJson(
+    response,
+    sessionUserResponseSchema,
+    "/auth/setup-admin",
+  );
   return data.user;
 }
 

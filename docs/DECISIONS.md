@@ -471,3 +471,18 @@ app is in Docker and Postgres is on the same machine, the host is
 connection wizard — the process cannot persist DB credentials before it can
 connect. CI may still use a GitHub Actions Postgres service. This supersedes
 PLAN.md “app + postgres” Compose packaging.
+
+---
+
+**2026-08-30 — First Admin sign-in creates the real admin account.** Human PO:
+after the temporary bootstrap Admin signs in for the first time, prompt them
+to create a new admin email and password. They cannot use the app until they
+do.
+
+How: `users.must_setup_account` (default false). Bootstrap insert sets it
+true. Migration backfills `admin@opentcm.io`. Seed demo users stay false.
+`POST /auth/setup-admin` updates that same user (new email, display name,
+password; email and password must differ from the temporary ones) and
+clears the flag. Other authenticated API routes return `403 SETUP_REQUIRED`.
+HTML app routes redirect to `/setup-admin`. Same user id so history
+`actor_id` stays stable. No leftover deactivated bootstrap row.
