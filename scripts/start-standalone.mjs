@@ -8,8 +8,16 @@ import path from "node:path";
 
 import { config as loadEnv } from "dotenv";
 
+import { requireDatabaseUrl } from "./database-url.mjs";
+
 const root = process.cwd();
 loadEnv({ path: path.join(root, ".env") });
+try {
+  process.env.DATABASE_URL = requireDatabaseUrl();
+} catch (error) {
+  console.error(`start-standalone: ${error.message}`);
+  process.exit(1);
+}
 const standaloneDir = path.join(root, ".next", "standalone");
 const serverEntry = path.join(standaloneDir, "server.js");
 

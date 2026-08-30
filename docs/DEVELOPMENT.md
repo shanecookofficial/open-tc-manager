@@ -1,24 +1,50 @@
 # Local development
 
-This guide covers two ways to run OpenTCM locally during development. Both paths
-use the same environment variables; only how Postgres is started differs.
+This guide covers running OpenTCM locally. PostgreSQL is **not** started by
+Docker — you provide a PostgreSQL 16+ instance and enter the connectors in
+`.env`. Docker (optional) runs only the website.
 
 ## Prerequisites
 
 - **Node.js 22+** and **npm 10+** (see `engines` in `package.json`).
 - **Git** clone of this repository.
+- **PostgreSQL 16+** that you operate (local install, org server, or managed).
 
-For the Docker path you also need **Docker** and **Docker Compose v2**.
+For the Docker app path you also need **Docker** and **Docker Compose v2**.
 
-For the bring-your-own Postgres path you need a **PostgreSQL 16+** server.
-
-## Quick start with Docker Compose
-
-The `docker-compose.yml` file starts PostgreSQL 16 and the Next.js dev server:
+## Configure connectors
 
 ```bash
-cp .env.example .env   # optional on first run; compose sets DATABASE_URL for the app container
-docker compose up
+cp .env.example .env
+```
+
+Enter either discrete fields or `DATABASE_URL` (`DATABASE_URL` wins if both are
+set):
+
+```
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=opentcm
+POSTGRES_PASSWORD=opentcm
+POSTGRES_DB=opentcm
+```
+
+Create the role and database if they do not exist (superuser):
+
+```sql
+CREATE USER opentcm WITH PASSWORD 'opentcm';
+CREATE DATABASE opentcm OWNER opentcm;
+GRANT ALL PRIVILEGES ON DATABASE opentcm TO opentcm;
+```
+
+If the website runs **in Docker** and Postgres is on **this machine**, set
+`POSTGRES_HOST=host.docker.internal`. `localhost` inside the container is the
+container, not the host.
+
+## Quick start with Docker Compose (website only)
+
+```bash
+docker compose up --remove-orphans
 ```
 
 Wait until `docker compose logs app` shows Next.js Ready (`npm ci` and
@@ -30,21 +56,16 @@ Admin and no projects or cases.
   authentication (closed/trusted networks). Override `BOOTSTRAP_ADMIN_*` in
   `.env` if you want a different first Admin; Compose forwards those into the
   `app` service.
-- **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
 
-If this volume already has demo seed data (WEB/API cases) and you want the
-empty instance instead:
+`--remove-orphans` drops a leftover Compose `postgres` container from older
+revisions of this file. Your database is whatever you pointed the connectors
+at — `docker compose down` does not delete it.
+
+Optional WEB/API demo data:
 
 ```bash
-docker compose down -v
-docker compose up
+docker compose exec app npm run db:seed
 ```
-
-That deletes the Postgres volume. Optional WEB/API demo data is still
-`docker compose exec app npm run db:seed` after Ready.
-
-The `app` service waits for Postgres to pass its healthcheck before starting.
-Data persists in the `postgres_data` Docker volume.
 
 To run commands inside the app container:
 
@@ -52,63 +73,28 @@ To run commands inside the app container:
 docker compose exec app npm run lint
 ```
 
-Stop and remove containers (data volume is kept):
+Stop the website:
 
 ```bash
 docker compose down
 ```
 
-## Bring your own PostgreSQL
-
-Use this path when you already have Postgres installed or prefer not to use Docker.
-
-### 1. Create database and role
-
-Connect as a superuser and run:
-
-```sql
-CREATE USER opentcm WITH PASSWORD 'opentcm';
-CREATE DATABASE opentcm OWNER opentcm;
-GRANT ALL PRIVILEGES ON DATABASE opentcm TO opentcm;
-```
-
-Adjust the username, password, and database name if your environment requires it.
-
-### 2. Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` so `DATABASE_URL` points at your instance, for example:
-
-```
-DATABASE_URL=postgresql://opentcm:opentcm@localhost:5432/opentcm
-```
-
-The URL format is:
-
-```
-postgresql://<user>:<password>@<host>:<port>/<database>
-```
-
-### 3. Install dependencies and run the dev server
+## Run the Next.js dev server on the host
 
 ```bash
 npm ci
+npm run db:migrate
 npm run dev
 ```
 
 Open http://localhost:3000.
 
-After `npm ci`, apply migrations before running anything that talks to Postgres:
+Sign in as `admin@opentcm.io` / `opentcm-admin` on a new database
+(`NODE_ENV=development` creates that Admin when `users` is empty).
+`npm run db:seed` is optional.
 
-```bash
-npm run db:migrate
-```
-
-Sign in as `admin@opentcm.io` / `opentcm-admin` on a new database (`NODE_ENV=development`
-creates that Admin when `users` is empty). `npm run db:seed` is optional.
+Use `POSTGRES_HOST=localhost` (or `DATABASE_URL` with `localhost`) when the
+dev server is not in Docker.
 
 ## Seeding
 
@@ -143,7 +129,8 @@ rows or creates duplicate emails.
 skips existing rows and leaves row counts unchanged. `next_case_number` is synced to
 `max(case_number) + 1` per project after seeding.
 
-Requires `DATABASE_URL` (see `.env.example`) and an applied migration (`npm run db:migrate`).
+Requires configured connectors (see `.env.example`) and an applied migration
+(`npm run db:migrate`).
 
 ```bash
 npm run db:seed
@@ -167,17 +154,18 @@ psql "$DATABASE_URL" -c "SELECT count(*) FROM test_cases"
 | `npm run lint`             | ESLint                                                                               |
 | `npm run typecheck`        | TypeScript (`tsc --noEmit`)                                                          |
 | `npm run test`             | Vitest unit tests (does not require Postgres)                                        |
-| `npm run test:integration` | API integration tests against live Postgres (`DATABASE_URL`, migrated)               |
+| `npm run test:integration` | API integration tests against live Postgres (connectors, migrated)                   |
 | `npm run test:e2e`         | Playwright (seeds, production build, standalone server)                              |
 | `npm run db:generate`      | Generate a SQL migration from `src/lib/db/schema.ts`                                 |
-| `npm run db:migrate`       | Apply pending migrations to `DATABASE_URL` (drizzle-kit)                             |
+| `npm run db:migrate`       | Apply pending migrations (drizzle-kit)                                               |
 | `npm run db:migrate:prod`  | Apply migrations with `scripts/migrate.mjs` (no drizzle-kit)                         |
 | `npm run db:seed`          | Idempotent demo seed (WEB + API projects, markdown cases)                            |
 
 ## Troubleshooting
 
-- **Port 5432 already in use:** Stop the other Postgres instance or change the
-  published port in `docker-compose.yml` and update `DATABASE_URL` accordingly.
+- **`connection refused` from the Docker app:** You pointed connectors at
+  `localhost`. Use `host.docker.internal` when Postgres is on the Docker host.
+  Confirm `listen_addresses` and `pg_hba.conf` allow that client.
 - **Port 3000 already in use:** Run `npm run dev -- --port 3001` (or set the port
   in the compose `command` for the app service).
 - **`.env` not loaded:** Next.js loads `.env` automatically for local development.

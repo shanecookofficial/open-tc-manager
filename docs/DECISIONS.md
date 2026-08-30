@@ -453,5 +453,21 @@ How: `NODE_ENV=development` falls back to those credentials when
 `db:migrate:prod` on startup (no seed). Production Compose still requires
 explicit `BOOTSTRAP_ADMIN_*` and never invents a password. Bootstrap still
 runs only when `users` is empty and still creates no projects or cases.
-An existing seeded volume is unchanged until the operator wipes
-`postgres_data` (`docker compose down -v`).
+An existing seeded database is unchanged until the operator drops those
+rows on their Postgres.
+
+---
+
+**2026-08-30 — Bring-your-own Postgres; Docker runs the website only.** Human
+PO: do not run PostgreSQL via Docker. The org operates Postgres and enters
+connectors in `.env`. Compose (`docker-compose.yml` and
+`docker-compose.prod.yml`) starts **app only**.
+
+Connectors: `DATABASE_URL` **or** `POSTGRES_HOST`, `POSTGRES_PORT` (default
+5432), `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, optional
+`POSTGRES_SSLMODE`. URL wins if set. Discrete fields are URL-encoded. When the
+app is in Docker and Postgres is on the same machine, the host is
+`host.docker.internal` (`extra_hosts: host-gateway`). There is no in-app
+connection wizard — the process cannot persist DB credentials before it can
+connect. CI may still use a GitHub Actions Postgres service. This supersedes
+PLAN.md “app + postgres” Compose packaging.

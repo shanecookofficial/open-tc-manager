@@ -1,28 +1,8 @@
-# Production Compose stack — pre-built app image + PostgreSQL 16.
-# Quickstart: cp .env.example .env  &&  docker compose -f docker-compose.prod.yml up -d
-# See docs/SETUP.md for upgrades, backups, and SEED_DEMO_DATA.
+# Production Compose — app image only. The org provides PostgreSQL.
+# Quickstart: cp .env.example .env  (fill connectors)  &&  docker compose -f docker-compose.prod.yml up -d
+# See docs/SETUP.md.
 
 services:
-  postgres:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-opentcm}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opentcm}
-      POSTGRES_DB: ${POSTGRES_DB:-opentcm}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-opentcm} -d ${POSTGRES_DB:-opentcm}",
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
   app:
     build:
       context: .
@@ -31,8 +11,16 @@ services:
     restart: unless-stopped
     ports:
       - "${APP_PORT:-3000}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-opentcm}:${POSTGRES_PASSWORD:-opentcm}@postgres:5432/${POSTGRES_DB:-opentcm}
+      DATABASE_URL: ${DATABASE_URL:-}
+      POSTGRES_HOST: ${POSTGRES_HOST:-}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-}
+      POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-}
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
@@ -42,9 +30,3 @@ services:
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       HTTPS: ${HTTPS:-false}
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-volumes:
-  postgres_data:

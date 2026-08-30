@@ -19,8 +19,7 @@ Follow **[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)** (Docker Compose or
 bring-your-own PostgreSQL 16+). Short version:
 
 ```bash
-cp .env.example .env
-# start Postgres (docker compose up -d postgres, or your own instance)
+cp .env.example .env     # enter connectors for your PostgreSQL 16+ instance
 npm ci
 npm run db:migrate
 npm run dev              # http://localhost:3000 — admin@opentcm.io / opentcm-admin

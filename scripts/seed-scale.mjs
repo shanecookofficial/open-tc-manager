@@ -5,12 +5,15 @@
  * (1000 trashed). Idempotent: deletes an existing SCALE project first.
  *
  * Usage:
- *   DATABASE_URL=... node scripts/seed-scale.mjs
- *   DATABASE_URL=... node scripts/seed-scale.mjs --cleanup   # remove only
+ *   node scripts/seed-scale.mjs
+ *   node scripts/seed-scale.mjs --cleanup   # remove only
+ *   (reads DATABASE_URL or POSTGRES_* from the environment / .env)
  */
 import "dotenv/config";
 
 import pg from "pg";
+
+import { requireDatabaseUrl } from "./database-url.mjs";
 
 const SCALE_PREFIX = "SCALE";
 const PROJECT_NAME = "Scale Benchmark";
@@ -18,9 +21,11 @@ const TARGET_DIRS = 500;
 const TARGET_CASES = 5000;
 const TARGET_TRASHED = 1000;
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  console.error("DATABASE_URL is required");
+let databaseUrl;
+try {
+  databaseUrl = requireDatabaseUrl();
+} catch (error) {
+  console.error(error.message);
   process.exit(1);
 }
 

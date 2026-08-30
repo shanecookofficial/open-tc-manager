@@ -55,6 +55,7 @@ On a Docker host (not this agent VM if Docker is unavailable):
 git clone https://github.com/shanecookofficial/open-tc-manager.git
 cd open-tc-manager
 cp .env.example .env
+# required: POSTGRES_* or DATABASE_URL for the org Postgres
 # optional: SEED_DEMO_DATA=true for the first boot only, then set it back to false
 docker pull ghcr.io/shanecookofficial/opentcm:latest
 docker pull ghcr.io/shanecookofficial/opentcm:v0.1.0
@@ -67,8 +68,8 @@ Then in the browser: open http://localhost:3000, create a project (or use the
 seeded WEB project), create a test case, and confirm it appears in the list and
 at `/cases/<PREFIX>-1`.
 
-Tear down: `docker compose -f docker-compose.prod.yml down` (add `-v` only if
-you intend to destroy the Postgres volume).
+Tear down: `docker compose -f docker-compose.prod.yml down` (does not delete
+org Postgres data).
 
 Until the tag exists, `docker compose -f docker-compose.prod.yml up -d --build`
 still works from source ([`docs/SETUP.md`](docs/SETUP.md) Part A).

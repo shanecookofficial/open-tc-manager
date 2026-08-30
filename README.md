@@ -26,8 +26,8 @@ see [RELEASING.md](RELEASING.md)).
 - **Trash workflow** — restore or permanently delete; typed confirmation guards
   destructive actions.
 - **Directory management** — create, rename, move, and delete folders from the tree.
-- **Docker or bring-your-own Postgres** — production image with automatic migrations
-  on startup.
+- **Docker for the website only** — you provide PostgreSQL and enter connectors
+  in `.env`; migrations run on app startup.
 - **Email + password authentication** with Admin / Member / Viewer roles (v1.1).
 
 ## Quickstart
@@ -38,6 +38,7 @@ see [RELEASING.md](RELEASING.md)).
 git clone https://github.com/shanecookofficial/open-tc-manager.git
 cd open-tc-manager
 cp .env.example .env
+# Enter POSTGRES_* or DATABASE_URL for your org Postgres (required).
 # Optional: set SEED_DEMO_DATA=true in .env for demo data on first boot only,
 # then set it back to false (see docs/SETUP.md).
 docker compose -f docker-compose.prod.yml up -d --build
@@ -56,17 +57,17 @@ Full instructions (upgrades, backups, demo data, manual Postgres): **[docs/SETUP
 ## Development
 
 ```bash
-cp .env.example .env
-docker compose up          # Postgres + migrate + dev server
+cp .env.example .env       # enter POSTGRES_* or DATABASE_URL
+docker compose up --remove-orphans   # website only; migrate + dev server
 # http://localhost:3000 — admin@opentcm.io / opentcm-admin (empty instance)
 ```
 
-Or bring your own Postgres:
+Or run Next.js on the host (same connectors; use `localhost` for host Postgres):
 
 ```bash
 npm ci
 npm run db:migrate
-npm run dev                # same default Admin in NODE_ENV=development
+npm run dev
 ```
 
 `npm run db:seed` is optional (WEB/API demo projects and cases).
