@@ -50,7 +50,7 @@ export async function listCaseEvents(
     .where(eq(testCaseEvents.testCaseId, testCaseId))
     .orderBy(desc(testCaseEvents.createdAt), desc(testCaseEvents.id))
     .limit(query.limit);
-  return { items: recent.map(serializeTestCaseEvent) };}
+  return { items: recent.map(serializeTestCaseEvent) };
 }
 
 export async function revertTestCase(
