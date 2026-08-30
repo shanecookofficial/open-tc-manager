@@ -6,10 +6,9 @@
 export const DEV_BOOTSTRAP_ADMIN_EMAIL = "admin@opentcm.io";
 export const DEV_BOOTSTRAP_ADMIN_PASSWORD = "opentcm-admin";
 
-function envTrimmed(
-  name: string,
-  env: NodeJS.ProcessEnv = process.env,
-): string | undefined {
+type EnvLike = Record<string, string | undefined>;
+
+function envTrimmed(name: string, env: EnvLike): string | undefined {
   const value = env[name];
   if (value === undefined) {
     return undefined;
@@ -25,7 +24,7 @@ function envTrimmed(
  * {@link DEV_BOOTSTRAP_ADMIN_EMAIL} / {@link DEV_BOOTSTRAP_ADMIN_PASSWORD}.
  */
 export function resolveBootstrapCredentials(
-  env: NodeJS.ProcessEnv = process.env,
+  env: EnvLike = process.env,
 ): { email: string; password: string } | null {
   const emailRaw = envTrimmed("BOOTSTRAP_ADMIN_EMAIL", env);
   const passwordRaw = envTrimmed("BOOTSTRAP_ADMIN_PASSWORD", env);

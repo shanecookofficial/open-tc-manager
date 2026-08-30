@@ -30,6 +30,15 @@ import { db, pool, users } from "@/lib/db";
 
 const createdUserIds: number[] = [];
 
+function setNodeEnv(value: string | undefined) {
+  const env = process.env as Record<string, string | undefined>;
+  if (value === undefined) {
+    delete env.NODE_ENV;
+    return;
+  }
+  env.NODE_ENV = value;
+}
+
 afterEach(async () => {
   const ids = createdUserIds.splice(0);
   if (ids.length === 0) {
@@ -173,7 +182,7 @@ describe("bootstrap Admin", () => {
 
     delete process.env.BOOTSTRAP_ADMIN_EMAIL;
     delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
-    process.env.NODE_ENV = "test";
+    setNodeEnv("test");
 
     await pool.query("DELETE FROM sessions");
     await pool.query("DELETE FROM users");
@@ -186,7 +195,7 @@ describe("bootstrap Admin", () => {
       );
       expect(rows[0].n).toBe(0);
     } finally {
-      process.env.NODE_ENV = previousNodeEnv;
+      setNodeEnv(previousNodeEnv);
       if (previousEmail === undefined) {
         delete process.env.BOOTSTRAP_ADMIN_EMAIL;
       } else {
@@ -207,7 +216,7 @@ describe("bootstrap Admin", () => {
 
     delete process.env.BOOTSTRAP_ADMIN_EMAIL;
     delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
-    process.env.NODE_ENV = "development";
+    setNodeEnv("development");
 
     await pool.query("DELETE FROM sessions");
     await pool.query("DELETE FROM users");
@@ -231,7 +240,7 @@ describe("bootstrap Admin", () => {
       );
       expect(result.status).toBe(200);
     } finally {
-      process.env.NODE_ENV = previousNodeEnv;
+      setNodeEnv(previousNodeEnv);
       if (previousEmail === undefined) {
         delete process.env.BOOTSTRAP_ADMIN_EMAIL;
       } else {
