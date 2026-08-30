@@ -283,7 +283,8 @@ required on every surface — "simple yet intuitive" dies in the edge cases.
    two-column steps table (`#` | Action | Expected result) with markdown rendered in
    cells. Actions: Edit, Move, Delete (to trash, with confirm).
 4. **Case editor** (create + edit share one form).
-   Title field, directory picker, markdown description with write/preview tabs, and a
+   Title field, directory picker with **New folder…** (Member+; creates under the
+   current selection and selects it), markdown description with write/preview tabs, and a
    dynamic step list: each row has Action (required) and Expected result (optional)
    textareas with preview toggles, drag-handle + keyboard reordering, add/insert/remove
    row. Client + server validation with inline errors.

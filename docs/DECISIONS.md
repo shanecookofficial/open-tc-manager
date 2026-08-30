@@ -407,3 +407,13 @@ The append-only **story** is unchanged: A→B→C then revert to A is still
 A→B→C→A; the list shows **A, C, B, A**. Fixtures stay chronological
 story order. This supersedes the oldest-first list order in the 2026-08-29
 A1-2 / A3-2 entries.
+
+---
+
+**2026-08-30 — Create folder from the case editor.** Human PO: when writing
+a case, if the needed folder is missing, create it there instead of
+bouncing to the sidebar. Member+ **New folder…** on the Directory picker
+(create and edit). Parent is the current selection (`null` at Project
+root). On success the new folder is selected. Reuses `CreateDirectoryDialog`
+and `POST /directories`. No API change. Move-case dialog stays picker-only
+unless the PO asks.

@@ -29,12 +29,14 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { useAuth } from "@/components/auth/auth-context";
+import { CreateDirectoryDialog } from "@/components/directories/directory-dialogs";
+import { MarkdownEditor } from "@/components/markdown";
 import {
   DirectoryTree,
   directorySelectionToApiFilter,
   type DirectorySelection,
 } from "@/components/repository/directory-tree";
-import { MarkdownEditor } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +49,7 @@ import {
   parseValidationFieldPath,
   updateTestCase,
 } from "@/lib/api-client";
+import { canManageDirectories } from "@/lib/auth/permissions";
 import {
   createTestCaseBodySchema,
   putTestCaseBodySchema,
@@ -212,6 +215,8 @@ export function CaseEditorForm({
   testCase,
 }: CaseEditorFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const canCreateFolder = canManageDirectories(user?.role ?? "viewer");
   const formId = useId();
   const [title, setTitle] = useState(testCase?.title ?? "");
   const [description, setDescription] = useState(testCase?.description ?? "");
@@ -230,15 +235,18 @@ export function CaseEditorForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
 
   const compactEditors = steps.length > 40;
 
   useUnsavedChangesGuard(isDirty);
 
-  const { data: tree } = useAsyncData(
+  const { data: tree, refetch: refetchTree } = useAsyncData(
     () => getProjectTree(project.id),
     [project.id],
   );
+  const folderParentId =
+    directorySelection.type === "directory" ? directorySelection.id : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -384,6 +392,7 @@ export function CaseEditorForm({
   };
 
   return (
+    <>
     <form
       id={formId}
       onSubmit={handleSubmit}
@@ -415,7 +424,19 @@ export function CaseEditorForm({
       </div>
 
       <div className="grid gap-2">
-        <Label>Directory</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Directory</Label>
+          {canCreateFolder ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setFolderDialogOpen(true)}
+            >
+              New folder…
+            </Button>
+          ) : null}
+        </div>
         {tree ? (
           <div className="max-h-48 overflow-y-auto rounded-md border p-2">
             <DirectoryTree
@@ -433,6 +454,12 @@ export function CaseEditorForm({
         ) : (
           <div className="h-24 animate-pulse rounded-md bg-accent" />
         )}
+        {tree && tree.directories.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No folders yet. Create one if this case should not sit at the
+            project root.
+          </p>
+        ) : null}
       </div>
 
       <MarkdownEditor
@@ -520,5 +547,20 @@ export function CaseEditorForm({
         </Button>
       </div>
     </form>
+    {canCreateFolder ? (
+      <CreateDirectoryDialog
+        projectId={project.id}
+        parentId={folderParentId}
+        open={folderDialogOpen}
+        onOpenChange={setFolderDialogOpen}
+        onSuccess={(created) => {
+          setDirectorySelection({ type: "directory", id: created.id });
+          setIsDirty(true);
+          refetchTree();
+          setFolderDialogOpen(false);
+        }}
+      />
+    ) : null}
+    </>
   );
 }

@@ -72,6 +72,46 @@ test.describe("Case editor", () => {
     expect(firstPos).toBeLessThan(secondPos);
   });
 
+  test("creates a folder from the new-case form and files the case there", async ({
+    page,
+  }) => {
+    const prefix = uniquePrefix("E");
+    createdPrefix = prefix;
+    const projectName = `Folder-on-create ${prefix}`;
+    const folderName = `Onboarding ${prefix}`;
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /Select project|Web App|API/i }).click();
+    await page.getByRole("menuitem", { name: "Create project…" }).click();
+    await page.getByLabel("Name").fill(projectName);
+    await page.getByLabel("Prefix").fill(prefix);
+    await page.getByRole("button", { name: "Create project" }).click();
+
+    await page.getByRole("link", { name: "New test case" }).click();
+    await expect(page.getByText("No folders yet.")).toBeVisible();
+
+    await page.getByRole("button", { name: "New folder…" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: "New folder" })).toBeVisible();
+    await dialog.getByLabel("Name").fill(folderName);
+    await dialog.getByRole("button", { name: "Create folder" }).click();
+
+    const folderRow = page
+      .getByRole("navigation", { name: "Directory tree" })
+      .getByRole("button", { name: folderName });
+    await expect(folderRow).toBeVisible();
+    await expect(folderRow).toHaveAttribute("aria-current", "page");
+
+    await page.getByLabel("Title").fill("Welcome email");
+    await page.getByLabel("Action", { exact: true }).fill("Open the inbox.");
+    await page.getByRole("button", { name: "Create test case" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/cases/${prefix}-1$`));
+    await expect(
+      page.getByRole("navigation", { name: "Breadcrumb" }).getByText(folderName),
+    ).toBeVisible();
+  });
+
   test("submitting empty action shows inline error and sends no request", async ({
     page,
     request,

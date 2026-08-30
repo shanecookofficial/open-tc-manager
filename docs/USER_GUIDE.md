@@ -42,6 +42,9 @@ Use the **⋯** menu:
 - On **All test cases**: **New folder…** only (create a top-level folder).
 - On a folder: **New subfolder…**, **Rename…**, **Move…**, or **Delete…**.
 
+You can also create a folder from the case editor (**New folder…** next to
+Directory) so you do not have to leave the form if the folder does not exist yet.
+
 When deleting a non-empty folder you choose:
 
 - **Move contents to parent folder** — cases stay active, folder is removed.
@@ -56,7 +59,7 @@ Click **New test case** from the repository view.
 | Field | Notes |
 | --- | --- |
 | **Title** | Plain text; shown in lists and at the top of the detail page. |
-| **Directory** | Optional; defaults to the folder you were viewing. |
+| **Directory** | Optional; defaults to the folder you were viewing. **New folder…** creates a folder under the current selection (or a top-level folder at Project root) and selects it for this case. |
 | **Description** | Markdown (headings, lists, tables, code blocks). |
 | **Steps** | Ordered list; each step has a required **Action** and optional **Expected result** (both markdown). |
 

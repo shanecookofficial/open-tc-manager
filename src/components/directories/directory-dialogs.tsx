@@ -29,7 +29,12 @@ import {
   updateDirectory,
 } from "@/lib/api-client";
 import { createDirectoryBodySchema, nameSchema } from "@/lib/contracts";
-import type { DirectoryDeleteMode, ProjectTree, TreeNode } from "@/lib/contracts";
+import type {
+  Directory,
+  DirectoryDeleteMode,
+  ProjectTree,
+  TreeNode,
+} from "@/lib/contracts";
 import {
   collectSubtreeIdsFromTree,
   filterExcludedNodes,
@@ -126,7 +131,7 @@ export function DirectoryDialogs({
   );
 }
 
-function CreateDirectoryDialog({
+export function CreateDirectoryDialog({
   projectId,
   parentId,
   open,
@@ -137,7 +142,7 @@ function CreateDirectoryDialog({
   parentId: number | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
+  onSuccess: (created: Directory) => void;
 }) {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -162,7 +167,7 @@ function CreateDirectoryDialog({
       const created = await createDirectory(parsed.data);
       toast.success(`Folder "${created.name}" created`);
       setName("");
-      onSuccess();
+      onSuccess(created);
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.code === "SIBLING_NAME_TAKEN") {
