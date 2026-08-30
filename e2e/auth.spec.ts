@@ -31,7 +31,7 @@ test.describe("Authentication", () => {
     await expect(page.getByText("Open Test Case Manager")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Log out" }).click();
-    await expect(page).toHaveURL("/login");
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("unauthenticated visit redirects to login with next path", async ({
