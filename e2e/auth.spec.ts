@@ -27,6 +27,8 @@ test.describe("Authentication", () => {
     await expect(page).toHaveURL(/\/p\/WEB/);
     await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "OpenTCM", exact: true })).toBeVisible();
+    await expect(page.getByText("Open Test Case Manager")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Log out" }).click();
     await expect(page).toHaveURL("/login");
