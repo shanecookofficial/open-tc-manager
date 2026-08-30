@@ -1,0 +1,583 @@
+# OpenTCM setup guide
+
+This guide covers installing and running **OpenTCM — Open Test Case Manager** in
+production. For day-to-day development, see [`DEVELOPMENT.md`](DEVELOPMENT.md).
+
+> **Security — read before exposing OpenTCM to a network**
+>
+> OpenTCM v1.1 adds **email + password authentication** and instance-wide roles.
+> Deploy on a **closed or trusted network** (VPN, office LAN, SSH tunnel). Basic
+> auth is not a substitute for network isolation — do not publish OpenTCM directly
+> to the public internet without additional access controls.
+
+---
+
+## Part A — Docker Compose (website only)
+
+OpenTCM does **not** run PostgreSQL. The org provides a PostgreSQL **16+**
+instance and enters the connectors in `.env`. Compose starts only the website.
+
+### Prerequisites
+
+- [Docker Engine](https://docs.docker.com/engine/install/) 24+
+- [Docker Compose](https://docs.docker.com/compose/install/) v2
+- A PostgreSQL 16+ server the app container can reach (same host, LAN, or
+  managed). Create a role and database before starting the app — [Part B
+  steps 1–2](#part-b--run-the-app-without-docker) if you still need to install
+  Postgres on this machine.
+
+### 1. Clone and enter connectors
+
+```bash
+git clone https://github.com/shanecookofficial/open-tc-manager.git
+cd open-tc-manager
+cp .env.example .env
+```
+
+Edit `.env`. Pick **one** style:
+
+**Discrete connectors** (recommended):
+
+```
+POSTGRES_HOST=db.internal.example.com
+POSTGRES_PORT=5432
+POSTGRES_USER=opentcm
+POSTGRES_PASSWORD=change-me-in-production
+POSTGRES_DB=opentcm
+# POSTGRES_SSLMODE=require
+```
+
+**Single URL** (wins if set):
+
+```
+DATABASE_URL=postgresql://opentcm:change-me-in-production@db.internal.example.com:5432/opentcm
+```
+
+If the website runs in Docker and Postgres is on **this same machine**, use
+`POSTGRES_HOST=host.docker.internal` (or that host in `DATABASE_URL`).
+`localhost` inside the container is the container, not the host.
+
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_HOST` / `PORT` / `USER` / `PASSWORD` / `DB` | Discrete connectors. Required as a set when `DATABASE_URL` is unset. |
+| `POSTGRES_SSLMODE` | Optional. Appended only when building from discrete fields (e.g. `require`). |
+| `DATABASE_URL` | Optional. Full URL; wins over discrete fields. URL-encode `@ : / % #` in the password. |
+| `APP_PORT` | Host port mapped to the app container (default `3000`). |
+| `OPENTCM_IMAGE` | Image reference when not building locally. |
+| `SEED_DEMO_DATA` | `true` on **first boot only** to load the WEB/API demo dataset. |
+| `BOOTSTRAP_ADMIN_EMAIL` / `PASSWORD` | First Admin when `users` is empty (see [Part C](#part-c--first-admin-sign-in-and-users-v11)). Production requires both. Dev Compose defaults to `admin@opentcm.io` / `opentcm-admin`. |
+| `HTTPS` | `true` when served over HTTPS (Secure session cookie). |
+
+Compose forwards these into the `app` service. There is no bundled `postgres`
+service and no `postgres_data` volume.
+
+If you previously ran the old stack that included Postgres, stop orphans:
+
+```bash
+docker compose -f docker-compose.prod.yml down --remove-orphans
+docker compose down --remove-orphans
+```
+
+You may delete the leftover `*_postgres_data` volume after you have moved or
+discarded that data.
+
+### 2. Start the website
+
+Build from source (first run or after pulling code changes):
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Or pull a published release image (after the maintainer pushes git tag `v0.1.0`;
+the Docker workflow then publishes `ghcr.io/shanecookofficial/opentcm:latest` and
+`:v0.1.0` — until that tag exists, pull will fail and you should build from
+source instead):
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Open **http://localhost:3000** (or `http://localhost:<APP_PORT>` if you changed it).
+
+You will be redirected to **Sign in** (unauthenticated HTML routes return
+**HTTP 307** to `/login`, not 200 or 404). Sign in with the bootstrap Admin
+from [Part C](#part-c--first-admin-sign-in-and-users-v11), a demo user from
+`SEED_DEMO_DATA` / `npm run db:seed` (passwords in
+[`DEVELOPMENT.md`](DEVELOPMENT.md)), or an account your Admin provisioned.
+
+If `users` is empty and you did **not** set `BOOTSTRAP_ADMIN_*`, **production**
+Compose will not create an Admin. Set both variables and recreate the app
+container. Local **dev** Compose (`docker-compose.yml`) defaults to
+`admin@opentcm.io` / `opentcm-admin` and does not load demo projects.
+
+If you did **not** seed demo data, after sign-in the home URL shows **Create your
+first project** (Admins only). If you seeded, it redirects into the first project.
+
+The entrypoint:
+
+1. Runs database migrations (`scripts/migrate.mjs`), retrying if Postgres is
+   not ready yet.
+2. Optionally seeds demo data when `SEED_DEMO_DATA=true` (exact string `true`).
+3. Starts the Next.js standalone server on container port 3000
+   (`node server.js`, healthcheck `GET /api/v1/health`).
+
+### 3. Enable demo data on first boot
+
+In `.env`:
+
+```
+SEED_DEMO_DATA=true
+```
+
+Bring the stack up, or recreate the **app** container once so the entrypoint runs
+with the new value:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+The seed is **idempotent for rows that still exist** (upsert by project prefix and
+case number). Safe to run twice on an empty-of-demo database. **Do not leave
+`SEED_DEMO_DATA=true` after first boot:** a later restart will recreate demo cases
+you permanently deleted. Set it back to `false` and recreate the app container:
+
+```bash
+# in .env: SEED_DEMO_DATA=false
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Demo projects: **Web App** (`WEB`) and **Payments API** (`API`).
+
+### 4. Verify health
+
+```bash
+curl -s http://localhost:3000/api/v1/health
+```
+
+Expected: `{"status":"ok","database":"connected"}`
+
+`GET /api/v1/health` is public. Every other `/api/v1` route and every HTML page
+requires a session. Unauthenticated checks:
+
+```bash
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3000/p/WEB
+# HTTP 307  (redirect to /login?next=%2Fp%2FWEB)
+
+curl -s http://localhost:3000/api/v1/projects
+# {"error":{"code":"UNAUTHENTICATED","message":"Sign in to continue."}}
+```
+
+After you sign in (browser, or a cookie from `POST /api/v1/auth/login`), a
+seeded instance serves `/p/WEB` as **HTTP 200**. If you skipped seed, authed
+`/p/WEB` is **HTTP 404** — open `/` and use **Create your first project**.
+Authed `GET /api/v1/projects` then returns `{"items":[]}` when no projects
+exist.
+
+### 5. Upgrade to a new release
+
+Building from source:
+
+```bash
+cd open-tc-manager
+git pull
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Using a published GHCR image:
+
+```bash
+cd open-tc-manager
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Migrations run automatically every time the app container starts. Postgres data
+lives on **your** server — Compose does not store it.
+
+### 6. Backup and restore
+
+Back up with your org's Postgres tools. `--clean --if-exists` is required so a
+later restore can replace an existing schema (plain `pg_dump` restore fails with
+`schema "drizzle" already exists`).
+
+If `.env` uses `DATABASE_URL`:
+
+```bash
+set -a
+source .env
+set +a
+
+pg_dump "$DATABASE_URL" --no-owner --no-acl --clean --if-exists \
+  > opentcm-backup-$(date +%Y%m%d).sql
+```
+
+If you use discrete connectors, pass the same host/user/database to `pg_dump`
+(`pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB"`).
+
+**Restore** (destructive — stop the app first):
+
+```bash
+docker compose -f docker-compose.prod.yml stop app
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < opentcm-backup-YYYYMMDD.sql
+docker compose -f docker-compose.prod.yml start app
+```
+
+A dump **without** `--clean --if-exists` cannot be restored on top of a database
+that already has OpenTCM tables (`ERROR: schema "drizzle" already exists`).
+
+### 7. Stop and remove
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+That stops the website only. It does **not** delete your Postgres data.
+
+---
+
+## Part B — Run the app without Docker
+
+Use this path when you run Postgres yourself and want to run the Node.js app
+directly on a host (no Docker). You still enter the same connectors in `.env`.
+
+### 1. Install PostgreSQL 16
+
+Skip this section if `psql --version` already reports **16.x** and the server is
+accepting connections (`pg_isready`). Creating the role in step 2 is still required.
+
+Official installation guides:
+
+- [PostgreSQL download page](https://www.postgresql.org/download/) — pick your OS.
+- [Ubuntu packages](https://www.postgresql.org/download/linux/ubuntu/)
+
+**Ubuntu 24.04 (Noble):** `postgresql-16` is in the default archives.
+
+```bash
+sudo apt-get update
+sudo apt-get install -y postgresql-16 postgresql-client-16
+sudo systemctl enable --now postgresql
+```
+
+**Ubuntu 22.04 (Jammy):** the default archives ship PostgreSQL **14**, not 16.
+Add [PostgreSQL's apt repository](https://www.postgresql.org/download/linux/ubuntu/)
+first, then install `postgresql-16` / `postgresql-client-16` as above. Installing
+the metapackage `postgresql` on 22.04 gives you 14 and is **not** sufficient.
+
+If `systemctl` fails (containers, some WSL setups, hosts without systemd as PID 1),
+start Postgres with your platform's equivalent and skip `enable --now`. Verify with
+`pg_isready` and `psql --version`.
+
+Verify:
+
+```bash
+psql --version
+# psql (PostgreSQL) 16.x
+```
+
+### 2. Create database and role
+
+The copy-paste block below uses role/database name `opentcm`. **If a local OpenTCM
+dev install already created that role or database**, the statements fail with
+`already exists` — that is expected. Either drop them (destructive) or pick
+different names and substitute them in the connectors in step 4.
+
+```bash
+# Destructive reset if you are replacing a leftover dev database:
+# sudo -u postgres psql -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS opentcm;"
+# sudo -u postgres psql -v ON_ERROR_STOP=1 -c "DROP ROLE IF EXISTS opentcm;"
+```
+
+Connect as the Postgres superuser and run this block **verbatim** (change the
+password before production; the password must match the connectors in step 4):
+
+```bash
+sudo -u postgres psql -v ON_ERROR_STOP=1 <<'SQL'
+CREATE USER opentcm WITH PASSWORD 'change-me-in-production';
+CREATE DATABASE opentcm OWNER opentcm;
+GRANT ALL PRIVILEGES ON DATABASE opentcm TO opentcm;
+SQL
+```
+
+`CREATE DATABASE ... OWNER opentcm` is what grants schema rights on PostgreSQL 15+.
+The `GRANT ALL PRIVILEGES ON DATABASE` line is extra and does not replace ownership.
+
+### 3. Install Node.js 22 and clone OpenTCM
+
+Skip the NodeSource install if `node -v` already reports **v22**.
+
+```bash
+# Node 22 — see https://nodejs.org/ if you need another install method
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+git clone https://github.com/shanecookofficial/open-tc-manager.git
+cd open-tc-manager
+```
+
+### 4. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and enter the connectors. Discrete fields or `DATABASE_URL` both
+work (`DATABASE_URL` wins if set). **Replace** the example password `opentcm`
+with the password from step 2 or authentication will fail.
+
+```
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=opentcm
+POSTGRES_PASSWORD=change-me-in-production
+POSTGRES_DB=opentcm
+```
+
+Or:
+
+```
+DATABASE_URL=postgresql://opentcm:change-me-in-production@localhost:5432/opentcm
+```
+
+`db:migrate:prod`, `db:seed`, and `start:standalone` load this file from the
+repository root. You do **not** need to export the variables in the shell.
+URL-encode reserved characters in a URL password (`@`, `:`, `/`, `%`, `#`).
+
+### 5. Install dependencies, migrate, and build
+
+```bash
+npm ci
+npm run db:migrate:prod
+```
+
+`db:migrate:prod` uses `scripts/migrate.mjs` (drizzle-orm migrator). It does **not**
+require `drizzle-kit`, which is a development-only tool.
+
+Optional demo data (idempotent; safe to run twice):
+
+```bash
+npm run db:seed
+```
+
+If you skip seed, you still need a first Admin ([Part C](#part-c--first-admin-sign-in-and-users-v11))
+before anyone can sign in. After sign-in the UI shows **Create your first
+project** at http://localhost:3000. Authed `/p/WEB` will 404 until you create a
+project with that prefix or run the seed. Unauthenticated `/p/WEB` is always
+**HTTP 307** to `/login`.
+
+Production build:
+
+```bash
+npm run build
+```
+
+This produces a Next.js **standalone** output under `.next/standalone/`. The home
+page is rendered at **request** time (not frozen at build time), so seeding before
+or after `build` both work.
+
+### 6. Run the production server
+
+**Recommended (matches the Docker image runtime):**
+
+```bash
+npm run start:standalone
+```
+
+`start:standalone` copies static assets into the standalone bundle and runs
+`node .next/standalone/server.js` with `HOSTNAME=0.0.0.0` and `PORT=3000`.
+It also resolves connectors from `.env`. This is the correct production command;
+`node .next/standalone/server.js` by itself is missing static files.
+
+Open **http://localhost:3000**.
+
+`npm run start` (`next start`) is **not** a supported production command in this
+repo: `next.config.ts` sets `output: "standalone"`, and Next.js will warn that
+`next start` does not work with that setting. Use `start:standalone`.
+
+### 7. Verify
+
+```bash
+curl -s http://localhost:3000/api/v1/health
+# {"status":"ok","database":"connected"}
+```
+
+Unauthenticated HTML and API (v1.1):
+
+```bash
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3000/p/WEB
+# HTTP 307
+
+curl -s http://localhost:3000/api/v1/projects
+# {"error":{"code":"UNAUTHENTICATED","message":"Sign in to continue."}}
+```
+
+Sign in via the browser, or obtain a session cookie:
+
+```bash
+curl -s -c cookies.txt -H 'content-type: application/json' \
+  -d '{"email":"<admin-email>","password":"<admin-password>"}' \
+  http://localhost:3000/api/v1/auth/login
+```
+
+If you ran `db:seed` (demo passwords in [`DEVELOPMENT.md`](DEVELOPMENT.md)):
+
+```bash
+curl -s -o /dev/null -w "HTTP %{http_code}\n" -b cookies.txt \
+  http://localhost:3000/p/WEB
+# HTTP 200
+```
+
+If you skipped seed, authed `/p/WEB` is **HTTP 404**. Confirm instead:
+
+```bash
+curl -s -b cookies.txt http://localhost:3000/api/v1/projects
+# {"items":[]}
+```
+
+and that the browser, after sign-in, shows **Create your first project**.
+
+### 8. Upgrade (manual install)
+
+```bash
+cd open-tc-manager
+git pull
+npm ci
+npm run db:migrate:prod
+npm run build
+# restart your process manager / systemd unit running start:standalone
+```
+
+### 9. Backup and restore (manual Postgres)
+
+Load `DATABASE_URL` from `.env` in this shell, then dump with `--clean --if-exists`
+so restore can replace an existing schema:
+
+```bash
+set -a
+source .env
+set +a
+
+pg_dump "$DATABASE_URL" --no-owner --no-acl --clean --if-exists \
+  > opentcm-backup-$(date +%Y%m%d).sql
+```
+
+**Restore** (stop the OpenTCM process first to avoid concurrent writes):
+
+```bash
+set -a
+source .env
+set +a
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 < opentcm-backup-YYYYMMDD.sql
+```
+
+A dump **without** `--clean --if-exists` cannot be restored on top of a database
+that already has OpenTCM tables (`ERROR: schema "drizzle" already exists`).
+
+---
+
+## Troubleshooting
+
+| Symptom                                              | Fix                                                                                                                                                                                       |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Database is not configured`                         | Put `DATABASE_URL` **or** `POSTGRES_HOST` + `USER` + `PASSWORD` + `DB` in `.env` at the repo root. Compose forwards those into the app container.                                         |
+| App starts but health shows database error           | Check Postgres is reachable from the app (use `host.docker.internal` when the app is in Docker and Postgres is on this machine), credentials match, `pg_hba.conf` allows the client, and migrations ran. |
+| `connection refused` / `ECONNREFUSED` from Docker    | `localhost` inside the container is wrong. Set `POSTGRES_HOST=host.docker.internal` (or the real hostname). Confirm Postgres `listen_addresses` and `pg_hba.conf`.                          |
+| `role "opentcm" already exists`                      | Leftover dev database. Drop and recreate (step 2) or substitute different names.                                                                                                          |
+| Port 3000 in use                                     | Set `PORT=3001` (and `APP_PORT=3001` in Compose `.env`).                                                                                                                                  |
+| Docker app exits immediately                         | `docker compose -f docker-compose.prod.yml logs app` — usually migration failure or unreachable Postgres.                                                                                  |
+| Blank styles in standalone mode                      | Use `npm run start:standalone` (copies `.next/static`); do not run `server.js` without static assets.                                                                                     |
+| `/login` is **Page not found**                       | You are running **v0.1.0** (no sign-in page). Check out the v1.1 branch (`cursor/v11-auth-history-967e`) and restart Compose so it picks up `src/app/login`. Dev Compose migrates on startup. |
+| Still see WEB/API demo cases after a pull            | An older seed wrote those rows on **your** Postgres. Drop and recreate that database (or delete the demo projects) if you want an empty instance. Sign in as `admin@opentcm.io` / `opentcm-admin` on a new database. |
+| `/p/WEB` is **404** after sign-in                    | Seed was skipped (or prefix is not `WEB`). Open `/` and create a project, or run `npm run db:seed`.                                                                                       |
+| `/api/v1/projects` returns `UNAUTHENTICATED`         | Expected without a session. Sign in and retry with the `opentcm_session` cookie.                                                                                                          |
+| Sign in: “Email or password is incorrect” and empty instance | Production: `users` is empty and `BOOTSTRAP_ADMIN_*` was not set (or not passed into the container). Set both vars (password 8+ chars) and restart. Dev Compose already defaults to `admin@opentcm.io` / `opentcm-admin`. |
+| Docker: bootstrap vars in `.env` ignored             | `docker-compose.prod.yml` must forward `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` into the `app` service. Recreate the container after editing `.env`.                           |
+| `systemctl: System has not been booted with systemd` | Start Postgres without systemd; the packages can still be installed.                                                                                                                      |
+| `tsx: not found` on `docker compose exec app npm run db:seed` | **Dev** Compose (`docker-compose.yml`), not the production file. `tsx` is a devDependency in the `app_node_modules` volume. Wait until the app logs show Ready, then `docker compose exec app npm ci` and retry. If it still fails, recreate that volume (see [`DEVELOPMENT.md`](DEVELOPMENT.md)). Seed is optional if you already have users; you still need `db:migrate` for custom roles. |
+
+---
+
+## Part C — First Admin, sign-in, and users (v1.1)
+
+OpenTCM has **no public registration**. You need at least one Admin before anyone
+can sign in. Pick **one** first-user strategy for a given database.
+
+### Strategy 1 — Bootstrap Admin (empty `users` table)
+
+When `users` is empty, the app creates one Admin from environment variables on
+process start (`instrumentation.ts`) and again at login if boot was skipped.
+Password must be **8–256** characters after trim (same rule as every password).
+
+```
+BOOTSTRAP_ADMIN_EMAIL=ada@opentcm.example
+BOOTSTRAP_ADMIN_PASSWORD=change-me-in-production
+```
+
+Local **dev** Compose (`docker-compose.yml`) defaults to `admin@opentcm.io` /
+`opentcm-admin` when these variables are unset. Production Compose does **not**.
+
+Used by Docker Compose (the `app` service **forwards** these from `.env` — they
+are not baked into the image) and by `npm run start:standalone` (which loads
+`.env` from the repo root).
+
+Bootstrap runs **once**. If **any** user already exists (seed, prior bootstrap,
+or a row you inserted), it is a no-op. Unset `BOOTSTRAP_ADMIN_PASSWORD` after
+first boot in production; leaving it set does not create a second bootstrap
+Admin.
+
+If `users` is empty and both variables are **unset** in **production**, Sign in
+explains that the first Admin comes from `BOOTSTRAP_ADMIN_*`. Submitting the
+form returns **“Email or password is incorrect.”** — there is no account yet.
+A **development** boot (`NODE_ENV=development` or dev Compose defaults) creates
+`admin@opentcm.io` instead.
+
+### Strategy 2 — Demo users from seed (development / first look)
+
+`npm run db:seed` (and `SEED_DEMO_DATA=true` in Docker) inserts demo accounts
+when those **emails** are missing. Passwords are documented only in
+[`DEVELOPMENT.md`](DEVELOPMENT.md).
+
+| When | Users created |
+| --- | --- |
+| Demo email absent | That one of `admin@opentcm.local`, `member@opentcm.local`, `viewer@opentcm.local` is inserted |
+| Demo email already present | Row is left unchanged (never overwritten) |
+
+Seed does **not** skip just because `users` is non-empty. If you **bootstrap
+first** with a different email (e.g. `admin@opentcm.io`) and **then** seed, you
+get **two Admins** (`admin@opentcm.io` plus `admin@opentcm.local`) plus Member and Viewer.
+That is intentional. For a single-Admin production instance: bootstrap only, and
+leave `SEED_DEMO_DATA=false`.
+
+Docker first boot with `SEED_DEMO_DATA=true`: the entrypoint seeds **before**
+the Node server starts, so bootstrap sees a non-empty `users` table and is a
+no-op. Demo trio wins; `BOOTSTRAP_ADMIN_*` is unused.
+
+Playwright / `npm run test:e2e` seeds first, then sets `BOOTSTRAP_ADMIN_*` to
+the same `admin@opentcm.local` credentials as a fallback if seed did not run.
+
+### Sign in
+
+1. Open `/login` (unauthenticated visits to any other HTML page **307** here,
+   with `next=` for the original path except `/`).
+2. Enter the temporary bootstrap email and password.
+3. The first bootstrap sign-in sends you to `/setup-admin` to create your
+   real admin email and password. You cannot use the app until that is done.
+4. After that you land on the repository (or the `next=` path you requested).
+
+Bad password or unknown email: **“Email or password is incorrect.”**
+Deactivated account with the correct password: **“This account has been
+deactivated.”**
+
+Admins open **Users** in the header to create Member/Viewer accounts and manage
+roles. The last remaining Admin cannot be deactivated or demoted. See
+[`USER_GUIDE.md`](USER_GUIDE.md) for roles and case history.
+
+---
+
+## Related docs
+
+- [`DEVELOPMENT.md`](DEVELOPMENT.md) — local dev with hot reload
+- [`USER_GUIDE.md`](USER_GUIDE.md) — using the application
+- [`API.md`](API.md) — HTTP API reference

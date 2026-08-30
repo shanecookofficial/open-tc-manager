@@ -1,0 +1,32 @@
+# Production Compose — app image only. The org provides PostgreSQL.
+# Quickstart: cp .env.example .env  (fill connectors)  &&  docker compose -f docker-compose.prod.yml up -d
+# See docs/SETUP.md.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${OPENTCM_IMAGE:-ghcr.io/shanecookofficial/opentcm:latest}
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-}
+      POSTGRES_HOST: ${POSTGRES_HOST:-}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-}
+      POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-}
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      # Forwarded from `.env`. Empty values are a no-op (bootstrap only runs
+      # when both are non-empty and `users` is empty). See docs/SETUP.md Part C.
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      HTTPS: ${HTTPS:-false}
