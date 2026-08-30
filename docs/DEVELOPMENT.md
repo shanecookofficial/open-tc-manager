@@ -21,20 +21,27 @@ cp .env.example .env   # optional on first run; compose sets DATABASE_URL for th
 docker compose up
 ```
 
-On the **first run**, wait until `docker compose logs app` shows Next.js Ready
-(`npm ci` finished), then apply migrations (and optionally load demo data) from
-a second terminal — the dev stack does not run them for you:
+Wait until `docker compose logs app` shows Next.js Ready (`npm ci` and
+migrations finished). You do **not** need `db:seed`. A new database gets one
+Admin and no projects or cases.
+
+- **App:** http://localhost:3000 — sign in as `admin@opentcm.io` /
+  `opentcm-admin`, then **Create your first project**. OpenTCM requires
+  authentication (closed/trusted networks). Override `BOOTSTRAP_ADMIN_*` in
+  `.env` if you want a different first Admin; Compose forwards those into the
+  `app` service.
+- **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
+
+If this volume already has demo seed data (WEB/API cases) and you want the
+empty instance instead:
 
 ```bash
-docker compose exec app npm run db:migrate
-docker compose exec app npm run db:seed   # optional: WEB/API demo data
+docker compose down -v
+docker compose up
 ```
 
-- **App:** http://localhost:3000 — sign in with a seeded or bootstrap Admin, then
-  land in the demo project or the "create your first project" screen (Admins).
-  OpenTCM requires authentication (closed/trusted networks). `BOOTSTRAP_ADMIN_*`
-  in `.env` is forwarded into the Compose `app` service.
-- **Postgres:** `localhost:5432`, user/password/database `opentcm` / `opentcm` / `opentcm`.
+That deletes the Postgres volume. Optional WEB/API demo data is still
+`docker compose exec app npm run db:seed` after Ready.
 
 The `app` service waits for Postgres to pass its healthcheck before starting.
 Data persists in the `postgres_data` Docker volume.
@@ -98,8 +105,10 @@ After `npm ci`, apply migrations before running anything that talks to Postgres:
 
 ```bash
 npm run db:migrate
-npm run db:seed
 ```
+
+Sign in as `admin@opentcm.io` / `opentcm-admin` on a new database (`NODE_ENV=development`
+creates that Admin when `users` is empty). `npm run db:seed` is optional.
 
 ## Seeding
 
@@ -112,7 +121,11 @@ The script inserts (or reuses) two projects — **Web App** (`WEB`) and **Paymen
 as `src/lib/contracts/fixtures.ts`. Database ids differ from fixture ids; match rows by
 `prefix` and `displayNumber` (e.g. `WEB-11`).
 
-It also seeds **demo users** when the `users` table is empty:
+A new **development** instance does **not** run this script. First boot
+creates `admin@opentcm.io` / `opentcm-admin` and leaves projects empty.
+Seed is optional when you want the WEB/API walkthrough dataset.
+
+It also inserts **demo users** when those emails are missing:
 
 | Email | Role | Password (dev only) |
 | --- | --- | --- |

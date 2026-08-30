@@ -1,8 +1,56 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+  DEV_BOOTSTRAP_ADMIN_EMAIL,
+  DEV_BOOTSTRAP_ADMIN_PASSWORD,
+  resolveBootstrapCredentials,
+} from "@/lib/auth/bootstrap-credentials";
 import { hashPassword, verifyPassword } from "./password";
 import { formatSessionCookie } from "./session";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/contracts";
+
+describe("resolveBootstrapCredentials", () => {
+  it("uses explicit env when both values are set", () => {
+    expect(
+      resolveBootstrapCredentials({
+        NODE_ENV: "production",
+        BOOTSTRAP_ADMIN_EMAIL: "ada@example.com",
+        BOOTSTRAP_ADMIN_PASSWORD: "change-me-in-production",
+      }),
+    ).toEqual({
+      email: "ada@example.com",
+      password: "change-me-in-production",
+    });
+  });
+
+  it("does not fill a partial env pair", () => {
+    expect(
+      resolveBootstrapCredentials({
+        NODE_ENV: "development",
+        BOOTSTRAP_ADMIN_EMAIL: "ada@example.com",
+      }),
+    ).toBeNull();
+    expect(
+      resolveBootstrapCredentials({
+        NODE_ENV: "development",
+        BOOTSTRAP_ADMIN_PASSWORD: "change-me-in-production",
+      }),
+    ).toBeNull();
+  });
+
+  it("uses the development default when env is unset", () => {
+    expect(resolveBootstrapCredentials({ NODE_ENV: "development" })).toEqual({
+      email: DEV_BOOTSTRAP_ADMIN_EMAIL,
+      password: DEV_BOOTSTRAP_ADMIN_PASSWORD,
+    });
+  });
+
+  it("does not invent an Admin in production or test", () => {
+    expect(resolveBootstrapCredentials({ NODE_ENV: "production" })).toBeNull();
+    expect(resolveBootstrapCredentials({ NODE_ENV: "test" })).toBeNull();
+    expect(resolveBootstrapCredentials({})).toBeNull();
+  });
+});
 
 describe("Argon2id password hashing", () => {
   it("verifies a hash of the same password and rejects a different one", async () => {

@@ -439,3 +439,19 @@ already deleted them.
 name should be **OpenTCM**, not “OpenTCM — Open Test Case Manager”. Docs,
 README, and the browser tab title still use the long form. The login page
 subtitle is unchanged (it is not the header).
+
+---
+
+**2026-08-30 — Empty instance, default Admin `admin@opentcm.io`.** Human PO:
+do not seed demo projects or cases by default. A new **development** database
+gets one Admin — `admin@opentcm.io` / `opentcm-admin` — and the home empty
+state (**Create your first project**). `npm run db:seed` stays optional for
+the WEB/API walkthrough dataset (`admin@opentcm.local` plus Member/Viewer).
+
+How: `NODE_ENV=development` falls back to those credentials when
+`BOOTSTRAP_ADMIN_*` is unset. Dev Compose sets the same defaults and runs
+`db:migrate:prod` on startup (no seed). Production Compose still requires
+explicit `BOOTSTRAP_ADMIN_*` and never invents a password. Bootstrap still
+runs only when `users` is empty and still creates no projects or cases.
+An existing seeded volume is unchanged until the operator wipes
+`postgres_data` (`docker compose down -v`).

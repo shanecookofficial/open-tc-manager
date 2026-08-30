@@ -5,7 +5,11 @@ import { POST as LOGOUT } from "@/app/api/v1/auth/logout/route";
 import { GET as ME } from "@/app/api/v1/auth/me/route";
 import { POST as CHANGE_PASSWORD } from "@/app/api/v1/auth/password/route";
 import { GET as HEALTH } from "@/app/api/v1/health/route";
-import { bootstrapAdminIfEmpty } from "@/lib/api/auth";
+import {
+  DEV_BOOTSTRAP_ADMIN_EMAIL,
+  DEV_BOOTSTRAP_ADMIN_PASSWORD,
+  bootstrapAdminIfEmpty,
+} from "@/lib/api/auth";
 import { hashPassword } from "@/lib/api/password";
 import { resolveSessionFromToken } from "@/lib/api/session";
 import {
@@ -149,6 +153,85 @@ describe("bootstrap Admin", () => {
       expect(body.user.email).toBe(email);
       expect(body.user.role).toBe("admin");
     } finally {
+      if (previousEmail === undefined) {
+        delete process.env.BOOTSTRAP_ADMIN_EMAIL;
+      } else {
+        process.env.BOOTSTRAP_ADMIN_EMAIL = previousEmail;
+      }
+      if (previousPassword === undefined) {
+        delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
+      } else {
+        process.env.BOOTSTRAP_ADMIN_PASSWORD = previousPassword;
+      }
+    }
+  });
+
+  it("is a no-op when env is missing outside development", async () => {
+    const previousEmail = process.env.BOOTSTRAP_ADMIN_EMAIL;
+    const previousPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+    const previousNodeEnv = process.env.NODE_ENV;
+
+    delete process.env.BOOTSTRAP_ADMIN_EMAIL;
+    delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
+    process.env.NODE_ENV = "test";
+
+    await pool.query("DELETE FROM sessions");
+    await pool.query("DELETE FROM users");
+    createdUserIds.length = 0;
+
+    try {
+      expect(await bootstrapAdminIfEmpty()).toBe("env-missing");
+      const { rows } = await pool.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM users",
+      );
+      expect(rows[0].n).toBe(0);
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+      if (previousEmail === undefined) {
+        delete process.env.BOOTSTRAP_ADMIN_EMAIL;
+      } else {
+        process.env.BOOTSTRAP_ADMIN_EMAIL = previousEmail;
+      }
+      if (previousPassword === undefined) {
+        delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
+      } else {
+        process.env.BOOTSTRAP_ADMIN_PASSWORD = previousPassword;
+      }
+    }
+  });
+
+  it("creates admin@opentcm.io in development when env is unset", async () => {
+    const previousEmail = process.env.BOOTSTRAP_ADMIN_EMAIL;
+    const previousPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+    const previousNodeEnv = process.env.NODE_ENV;
+
+    delete process.env.BOOTSTRAP_ADMIN_EMAIL;
+    delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
+    process.env.NODE_ENV = "development";
+
+    await pool.query("DELETE FROM sessions");
+    await pool.query("DELETE FROM users");
+    createdUserIds.length = 0;
+
+    try {
+      expect(await bootstrapAdminIfEmpty()).toBe("created");
+      const { rows } = await pool.query<{
+        id: string;
+        email: string;
+        role: string;
+      }>("SELECT id, email, role FROM users");
+      expect(rows).toHaveLength(1);
+      expect(rows[0].email).toBe(DEV_BOOTSTRAP_ADMIN_EMAIL);
+      expect(rows[0].role).toBe("admin");
+      createdUserIds.push(Number(rows[0].id));
+
+      const result = await login(
+        DEV_BOOTSTRAP_ADMIN_EMAIL,
+        DEV_BOOTSTRAP_ADMIN_PASSWORD,
+      );
+      expect(result.status).toBe(200);
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
       if (previousEmail === undefined) {
         delete process.env.BOOTSTRAP_ADMIN_EMAIL;
       } else {

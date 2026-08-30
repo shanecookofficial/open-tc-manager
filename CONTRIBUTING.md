@@ -23,8 +23,8 @@ cp .env.example .env
 # start Postgres (docker compose up -d postgres, or your own instance)
 npm ci
 npm run db:migrate
-npm run db:seed          # optional demo data (idempotent)
-npm run dev              # http://localhost:3000
+npm run dev              # http://localhost:3000 — admin@opentcm.io / opentcm-admin
+# npm run db:seed        # optional WEB/API demo data (idempotent)
 ```
 
 Node.js **22+** is required (`package.json` `engines`).

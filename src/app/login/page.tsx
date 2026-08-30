@@ -24,9 +24,10 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
         <p className="text-center text-xs text-muted-foreground">
-          First-time setup: ask an operator to configure{" "}
-          <code className="text-[11px]">BOOTSTRAP_ADMIN_*</code> or run{" "}
-          <code className="text-[11px]">npm run db:seed</code> for demo users.
+          New local instance: sign in as{" "}
+          <code className="text-[11px]">admin@opentcm.io</code>. Production
+          first Admin comes from{" "}
+          <code className="text-[11px]">BOOTSTRAP_ADMIN_*</code>.
         </p>
       </div>
     </main>

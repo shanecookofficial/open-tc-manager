@@ -37,8 +37,8 @@ Edit `.env` if you want non-default credentials or demo data on first boot:
 | `APP_PORT`          | `3000`                                     | Host port mapped to the app container                                 |
 | `OPENTCM_IMAGE`     | `ghcr.io/shanecookofficial/opentcm:latest` | Image reference (used when not building locally)                      |
 | `SEED_DEMO_DATA`    | `false`                                    | Set to `true` on **first boot only** to load the WEB/API demo dataset |
-| `BOOTSTRAP_ADMIN_EMAIL` | unset (optional)                         | First Admin email when `users` is empty (see [Part C](#part-c--first-admin-sign-in-and-users-v11)) |
-| `BOOTSTRAP_ADMIN_PASSWORD` | unset (optional)                      | First Admin password, 8–256 characters (unset after first boot in production) |
+| `BOOTSTRAP_ADMIN_EMAIL` | unset (required on first production boot) | First Admin email when `users` is empty (see [Part C](#part-c--first-admin-sign-in-and-users-v11)). Dev Compose defaults to `admin@opentcm.io`. |
+| `BOOTSTRAP_ADMIN_PASSWORD` | unset (required on first production boot) | First Admin password, 8–256 characters (unset after first boot in production). Dev Compose defaults to `opentcm-admin`. |
 | `HTTPS`             | `false`                                    | Set `true` when served over HTTPS (Secure session cookie)             |
 
 `docker-compose.prod.yml` reads these variables from `.env` in the project directory
@@ -75,9 +75,10 @@ from [Part C](#part-c--first-admin-sign-in-and-users-v11), a demo user from
 `SEED_DEMO_DATA` / `npm run db:seed` (passwords in
 [`DEVELOPMENT.md`](DEVELOPMENT.md)), or an account your Admin provisioned.
 
-If `users` is empty and you did **not** set `BOOTSTRAP_ADMIN_*`, nobody can
-sign in until you set those variables and recreate the app container, or seed
-demo users.
+If `users` is empty and you did **not** set `BOOTSTRAP_ADMIN_*`, **production**
+Compose will not create an Admin. Set both variables and recreate the app
+container. Local **dev** Compose (`docker-compose.yml`) defaults to
+`admin@opentcm.io` / `opentcm-admin` and does not load demo projects.
 
 If you did **not** seed demo data, after sign-in the home URL shows **Create your
 first project** (Admins only). If you seeded, it redirects into the first project.
@@ -465,10 +466,11 @@ that already has OpenTCM tables (`ERROR: schema "drizzle" already exists`).
 | Port 3000 in use                                     | Set `PORT=3001` (and `APP_PORT=3001` in Compose `.env`).                                                                                                                                  |
 | Docker app exits immediately                         | `docker compose -f docker-compose.prod.yml logs app` — usually migration failure or bad `DATABASE_URL`.                                                                                   |
 | Blank styles in standalone mode                      | Use `npm run start:standalone` (copies `.next/static`); do not run `server.js` without static assets.                                                                                     |
-| `/login` is **Page not found**                       | You are running **v0.1.0** (no sign-in page). Check out the v1.1 branch (`cursor/v11-auth-history-967e`), restart Compose so it picks up `src/app/login`, then migrate + seed.            |
+| `/login` is **Page not found**                       | You are running **v0.1.0** (no sign-in page). Check out the v1.1 branch (`cursor/v11-auth-history-967e`) and restart Compose so it picks up `src/app/login`. Dev Compose migrates on startup. |
+| Still see WEB/API demo cases after a pull            | An older seed wrote those rows. For an empty instance: `docker compose down -v` then `docker compose up` (destroys the Postgres volume). Sign in as `admin@opentcm.io` / `opentcm-admin`. |
 | `/p/WEB` is **404** after sign-in                    | Seed was skipped (or prefix is not `WEB`). Open `/` and create a project, or run `npm run db:seed`.                                                                                       |
 | `/api/v1/projects` returns `UNAUTHENTICATED`         | Expected without a session. Sign in and retry with the `opentcm_session` cookie.                                                                                                          |
-| Sign in: “Email or password is incorrect” and empty instance | `users` is empty and `BOOTSTRAP_ADMIN_*` was not set (or not passed into the container). Set both vars (password 8+ chars) and restart, or run `npm run db:seed`.                         |
+| Sign in: “Email or password is incorrect” and empty instance | Production: `users` is empty and `BOOTSTRAP_ADMIN_*` was not set (or not passed into the container). Set both vars (password 8+ chars) and restart. Dev Compose already defaults to `admin@opentcm.io` / `opentcm-admin`. |
 | Docker: bootstrap vars in `.env` ignored             | `docker-compose.prod.yml` must forward `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` into the `app` service. Recreate the container after editing `.env`.                           |
 | `systemctl: System has not been booted with systemd` | Start Postgres without systemd; the packages can still be installed.                                                                                                                      |
 | `tsx: not found` on `docker compose exec app npm run db:seed` | **Dev** Compose (`docker-compose.yml`), not the production file. `tsx` is a devDependency in the `app_node_modules` volume. Wait until the app logs show Ready, then `docker compose exec app npm ci` and retry. If it still fails, recreate that volume (see [`DEVELOPMENT.md`](DEVELOPMENT.md)). Seed is optional if you already have users; you still need `db:migrate` for custom roles. |
@@ -487,9 +489,12 @@ process start (`instrumentation.ts`) and again at login if boot was skipped.
 Password must be **8–256** characters after trim (same rule as every password).
 
 ```
-BOOTSTRAP_ADMIN_EMAIL=ada@opentcm.local
+BOOTSTRAP_ADMIN_EMAIL=ada@opentcm.example
 BOOTSTRAP_ADMIN_PASSWORD=change-me-in-production
 ```
+
+Local **dev** Compose (`docker-compose.yml`) defaults to `admin@opentcm.io` /
+`opentcm-admin` when these variables are unset. Production Compose does **not**.
 
 Used by Docker Compose (the `app` service **forwards** these from `.env` — they
 are not baked into the image) and by `npm run start:standalone` (which loads
@@ -500,9 +505,11 @@ or a row you inserted), it is a no-op. Unset `BOOTSTRAP_ADMIN_PASSWORD` after
 first boot in production; leaving it set does not create a second bootstrap
 Admin.
 
-If `users` is empty and both variables are **unset**, Sign in shows a hint to
-configure `BOOTSTRAP_ADMIN_*` or run `npm run db:seed`. Submitting the form
-returns **“Email or password is incorrect.”** — there is no account yet.
+If `users` is empty and both variables are **unset** in **production**, Sign in
+explains that the first Admin comes from `BOOTSTRAP_ADMIN_*`. Submitting the
+form returns **“Email or password is incorrect.”** — there is no account yet.
+A **development** boot (`NODE_ENV=development` or dev Compose defaults) creates
+`admin@opentcm.io` instead.
 
 ### Strategy 2 — Demo users from seed (development / first look)
 
@@ -516,8 +523,8 @@ when those **emails** are missing. Passwords are documented only in
 | Demo email already present | Row is left unchanged (never overwritten) |
 
 Seed does **not** skip just because `users` is non-empty. If you **bootstrap
-first** with a different email (e.g. `ada@opentcm.local`) and **then** seed, you
-get **two Admins** (`ada@` plus `admin@opentcm.local`) plus Member and Viewer.
+first** with a different email (e.g. `admin@opentcm.io`) and **then** seed, you
+get **two Admins** (`admin@opentcm.io` plus `admin@opentcm.local`) plus Member and Viewer.
 That is intentional. For a single-Admin production instance: bootstrap only, and
 leave `SEED_DEMO_DATA=false`.
 

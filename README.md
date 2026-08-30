@@ -43,8 +43,10 @@ cp .env.example .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Open http://localhost:3000 — sign in (bootstrap or seed Admin), then **Create your
-first project** if you skipped seed; the WEB/API demo if you set `SEED_DEMO_DATA=true`.
+Open http://localhost:3000 — sign in (production: the Admin you set with
+`BOOTSTRAP_ADMIN_*`; local `docker compose up`: `admin@opentcm.io` /
+`opentcm-admin`), then **Create your first project**. The WEB/API demo appears
+only if you set `SEED_DEMO_DATA=true` or run `npm run db:seed`.
 
 OpenTCM v1.1 requires sign-in. Use it only on a closed or trusted network
 ([Security](#security)).
@@ -55,12 +57,19 @@ Full instructions (upgrades, backups, demo data, manual Postgres): **[docs/SETUP
 
 ```bash
 cp .env.example .env
-docker compose up          # Postgres + dev server, or use your own Postgres
+docker compose up          # Postgres + migrate + dev server
+# http://localhost:3000 — admin@opentcm.io / opentcm-admin (empty instance)
+```
+
+Or bring your own Postgres:
+
+```bash
 npm ci
 npm run db:migrate
-npm run db:seed
-npm run dev
+npm run dev                # same default Admin in NODE_ENV=development
 ```
+
+`npm run db:seed` is optional (WEB/API demo projects and cases).
 
 See **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for scripts, testing, and
 troubleshooting.

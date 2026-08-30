@@ -9,6 +9,8 @@ import {
 } from "@/lib/contracts";
 import { db, users } from "@/lib/db";
 
+import { resolveBootstrapCredentials } from "@/lib/auth/bootstrap-credentials";
+
 import { ApiError } from "./errors";
 import { hashPassword, verifyPassword } from "./password";
 import { ensureBuiltInRoles, getRoleBySlug } from "./role-records";
@@ -20,24 +22,23 @@ import {
   sessionCookieHeader,
 } from "./session";
 
+export {
+  DEV_BOOTSTRAP_ADMIN_EMAIL,
+  DEV_BOOTSTRAP_ADMIN_PASSWORD,
+  resolveBootstrapCredentials,
+} from "@/lib/auth/bootstrap-credentials";
+
 /** Advisory lock so two boots cannot create two bootstrap Admins. */
 const BOOTSTRAP_LOCK = 87_104_611;
 
 export type BootstrapResult = "created" | "skipped" | "env-missing";
 
-function envTrimmed(name: string): string | undefined {
-  const value = process.env[name];
-  if (value === undefined) {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
 /**
  * Create the first Admin from BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD
- * only when `users` is empty. Missing env is a no-op; invalid env throws so
- * operators notice. Safe to call on every boot and from login.
+ * only when `users` is empty. Missing env is a no-op in production; in
+ * development the documented `admin@opentcm.io` account is created instead.
+ * Invalid env throws so operators notice. Safe to call on every boot and
+ * from login. Does not create projects or cases.
  */
 export async function bootstrapAdminIfEmpty(): Promise<BootstrapResult> {
   await ensureBuiltInRoles();
@@ -49,14 +50,13 @@ export async function bootstrapAdminIfEmpty(): Promise<BootstrapResult> {
       return "skipped";
     }
 
-    const emailRaw = envTrimmed("BOOTSTRAP_ADMIN_EMAIL");
-    const passwordRaw = envTrimmed("BOOTSTRAP_ADMIN_PASSWORD");
-    if (!emailRaw || !passwordRaw) {
+    const credentials = resolveBootstrapCredentials();
+    if (!credentials) {
       return "env-missing";
     }
 
-    const email = emailSchema.parse(emailRaw);
-    const password = passwordSchema.parse(passwordRaw);
+    const email = emailSchema.parse(credentials.email);
+    const password = passwordSchema.parse(credentials.password);
 
     await tx.insert(users).values({
       email,
