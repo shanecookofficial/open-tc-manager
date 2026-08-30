@@ -474,17 +474,20 @@ describe("A3-2 list events + revert", () => {
     const before = testCaseEventListResponseSchema.parse(listedBefore.json);
     expect(before.items).toHaveLength(3);
     expect(before.items.map((item) => item.snapshot)).toEqual([
-      snapshotA,
-      snapshotB,
       snapshotC,
+      snapshotB,
+      snapshotA,
     ]);
-    const frozenAtoC = structuredClone(before.items);
+    const frozenNewestFirst = structuredClone(before.items);
+    const eventA = frozenNewestFirst[2]!;
+    const eventB = frozenNewestFirst[1]!;
+    const eventC = frozenNewestFirst[0]!;
 
     const reverted = await invoke(REVERT, {
       method: "POST",
       path: `/api/v1/test-cases/${created.id}/revert`,
       params: { id: String(created.id) },
-      body: { eventId: frozenAtoC[0].id },
+      body: { eventId: eventA.id },
     });
     expect(reverted.status).toBe(201);
     expect(reverted.headers.get("Location")).toBe(
@@ -492,7 +495,7 @@ describe("A3-2 list events + revert", () => {
     );
     const revertBody = revertTestCaseResponseSchema.parse(reverted.json);
     expect(revertBody.event.action).toBe("reverted");
-    expect(revertBody.event.revertedEventId).toBe(frozenAtoC[0].id);
+    expect(revertBody.event.revertedEventId).toBe(eventA.id);
     expect(revertBody.event.snapshot).toEqual(snapshotA);
     expect(snapshotOf(revertBody.case)).toEqual(snapshotA);
 
@@ -500,16 +503,16 @@ describe("A3-2 list events + revert", () => {
     expect(listedAfter.status).toBe(200);
     const after = testCaseEventListResponseSchema.parse(listedAfter.json);
     expect(after.items).toHaveLength(4);
-    expect(after.items[0]).toEqual(frozenAtoC[0]);
-    expect(after.items[1]).toEqual(frozenAtoC[1]);
-    expect(after.items[2]).toEqual(frozenAtoC[2]);
+    expect(after.items[0]).toEqual(revertBody.event);
+    expect(after.items[1]).toEqual(eventC);
+    expect(after.items[2]).toEqual(eventB);
+    expect(after.items[3]).toEqual(eventA);
     expect(after.items.map((item) => item.snapshot)).toEqual([
       snapshotA,
-      snapshotB,
       snapshotC,
+      snapshotB,
       snapshotA,
     ]);
-    expect(after.items[3]).toEqual(revertBody.event);
 
     const current = await invoke(GET_BY_ID, {
       path: `/api/v1/test-cases/${created.id}`,
@@ -606,7 +609,7 @@ describe("A3-2 list events + revert", () => {
       method: "POST",
       path: `/api/v1/test-cases/${created.id}/revert`,
       params: { id: String(created.id) },
-      body: { eventId: before.items[0].id },
+      body: { eventId: before.items[2].id },
     });
 
     const afterFirstRevert = testCaseEventListResponseSchema.parse(
@@ -614,8 +617,8 @@ describe("A3-2 list events + revert", () => {
     );
     expect(afterFirstRevert.items.map((item) => item.snapshot)).toEqual([
       snapshotA,
+      afterFirstRevert.items[1]!.snapshot,
       snapshotB,
-      afterFirstRevert.items[2].snapshot,
       snapshotA,
     ]);
 
@@ -636,11 +639,11 @@ describe("A3-2 list events + revert", () => {
       (await listEvents(created.id)).json,
     );
     expect(timeline.items).toHaveLength(5);
-    expect(timeline.items[4].snapshot).toEqual(snapshotB);
-    expect(timeline.items[3].action).toBe("reverted");
+    expect(timeline.items[0].snapshot).toEqual(snapshotB);
+    expect(timeline.items[0].action).toBe("reverted");
   });
 
-  it("returns the most recent limit events still ordered oldest-first; 404s unknown cases; 401 without a session", async () => {
+  it("returns the most recent limit events newest-first; 404s unknown cases; 401 without a session", async () => {
     const project = await createProject();
     const created = await createCase(project.id, "Limit A");
     await invoke(PUT, {
@@ -671,10 +674,10 @@ describe("A3-2 list events + revert", () => {
     const body = testCaseEventListResponseSchema.parse(windowed.json);
     expect(body.items).toHaveLength(2);
     expect(body.items.map((item) => item.snapshot.title)).toEqual([
-      "Limit B",
       "Limit C",
+      "Limit B",
     ]);
-    expect(body.items[0].createdAt <= body.items[1].createdAt).toBe(true);
+    expect(body.items[0].createdAt >= body.items[1].createdAt).toBe(true);
 
     const missing = await listEvents(999_999_999);
     expect(missing.status).toBe(404);

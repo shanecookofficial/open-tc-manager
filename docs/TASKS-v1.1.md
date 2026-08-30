@@ -62,9 +62,10 @@ Decisions: `docs/DECISIONS.md`.
 ### A3-2 · List events + revert
 
 - **Owner:** Grok 4.6 · **Status:** done · **Needs:** A3-1
-- GET timeline oldest-first. POST revert applies snapshot, appends `reverted`
-  event. **Binding test:** mutate A→B→C, revert to A, GET events snapshots equal
-  A,B,C,A (fourth snapshot deep-equals first); events A–C unchanged.
+- GET timeline newest-first. POST revert applies snapshot, appends `reverted`
+  event. **Binding test:** mutate A→B→C, revert to A; chronological story is
+  still A→B→C→A. GET `{ items }` snapshots equal A,C,B,A (newest first);
+  events A–C unchanged.
 - **Accept:** that test plus revert of unknown event 404; Viewer 403 on revert;
   revert of a revert allowed.
 
@@ -90,8 +91,9 @@ Decisions: `docs/DECISIONS.md`.
 ### A4-3 · History panel + revert
 
 - **Owner:** Composer · **Status:** done · **Needs:** A4-1, A3-2
-- Case detail History: A→B→C→A readable; Revert confirm; Viewers see history
-  without Revert. Hide write chrome for Viewer.
+- Case detail History: newest event on top; A→B→C→A story still readable.
+  Revert confirm; Viewers see history without Revert. Hide write chrome for
+  Viewer.
 - **Accept:** Playwright Member: edit twice (A→B→C), revert to first snapshot,
   timeline shows four events and case body matches A.
 

@@ -124,17 +124,19 @@ Seeded cases start with **zero** events.
 
 ### Timeline display (product)
 
-Events are listed oldest → newest. Each row shows: relative time, actor display
+Events are listed newest → oldest. Each row shows: relative time, actor display
 name, action label, and a one-line summary (e.g. title after an update, destination
-folder after a move). Expanding a row shows the snapshot (markdown-rendered steps
-optional; a compact field list is enough).
+folder after a move). Expanding a row shows a git-style field diff against the
+chronologically previous event (the next row in a newest-first list). The oldest
+event is all additions.
 
 **Revert C to A:** user picks event A on a case whose current snapshot is C.
 Server loads snapshot A, applies it to `test_cases` + `test_steps` (+ `deleted_at`
 if A was trashed/active), inserts event D with `action=reverted`,
-`reverted_event_id=A`, `snapshot` = snapshot A. Timeline is A, B, C, D where D
-**is** state A. The UI may label D “Reverted to this version” while still
-presenting the restored content as A — the sequence the product owner required is
+`reverted_event_id=A`, `snapshot` = snapshot A. The append-only story is
+A, B, C, D where D **is** state A (listed newest-first as D, C, B, A). The
+UI may label D “Reverted to this version” while still presenting the
+restored content as A — the sequence the product owner required is
 **A → B → C → A**.
 
 Revert never deletes or edits events A, B, or C.
@@ -209,7 +211,7 @@ Full schemas land in `docs/API.md` in task A1-2 (freeze). Summary:
 | `POST /api/v1/auth/password` | any auth | change own password `{ currentPassword, newPassword }` |
 | `GET/POST /api/v1/users` | Admin | list / create `{ email, displayName, role, password }` |
 | `PATCH /api/v1/users/:id` | Admin | displayName, role, deactivate (`deactivatedAt`), setPassword |
-| `GET /api/v1/test-cases/:id/events` | any auth | oldest-first timeline (paginated if needed; default all, cap 500) |
+| `GET /api/v1/test-cases/:id/events` | any auth | newest-first timeline (paginated if needed; default all, cap 500) |
 | `POST /api/v1/test-cases/:id/revert` | Member+ | `{ eventId }` restore that event’s snapshot; 201 event + case |
 
 Existing case/directory/project routes: require session; enforce §4. Error codes

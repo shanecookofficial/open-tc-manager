@@ -1226,11 +1226,11 @@ rename does not rewrite history. `actorId` remains the stable user id
 
 ### `GET /api/v1/test-cases/:id/events`
 
-**Any authenticated role** (Viewer included). Oldest → newest.
+**Any authenticated role** (Viewer included). Newest → oldest.
 
 Query: optional `limit` (integer 1–500, default **500**). If the case has
 more than `limit` events, the **most recent** `limit` events are returned,
-still ordered oldest → newest within that window.
+already ordered newest → oldest (no extra reverse).
 
 Returns trashed cases' history as well (same as GET-by-id). Unknown case →
 `404 NOT_FOUND`.
@@ -1273,11 +1273,12 @@ points at the event whose snapshot was restored (must be the same
 
 **Errors:** `400 VALIDATION_ERROR`, `401 UNAUTHENTICATED`, `404 NOT_FOUND`.
 
-Contract fixtures (`createFixtures().caseEvents`) include the product-owner
-timeline on WEB-1: snapshots **A, B, C, A** — create, two updates, then
-revert of C back to A. The fourth event has `action: "reverted"`,
-`revertedEventId` equal to the first event's id, and a snapshot
-deep-equal to the first.
+Contract fixtures (`createFixtures().caseEvents`) keep the product-owner
+**story** on WEB-1 in chronological order: snapshots **A, B, C, A** —
+create, two updates, then revert of C back to A. The fourth event has
+`action: "reverted"`, `revertedEventId` equal to the first event's id,
+and a snapshot deep-equal to the first. `GET …/events` returns that same
+story newest-first: **A, C, B, A**.
 
 ---
 
@@ -1286,8 +1287,9 @@ deep-equal to the first.
 **Member+.** Restore the snapshot of `eventId` as the current case (title,
 description, directory, steps, and `deletedAt`) and **append** a new event
 with `action: "reverted"`. Events A, B, and C are not deleted or rewritten.
-If the case went A → B → C and the client reverts to A, history is
-**A → B → C → A**. Reverting a revert is allowed.
+If the case went A → B → C and the client reverts to A, the append-only
+story is **A → B → C → A**. `GET …/events` lists that newest-first
+(**A, C, B, A**). Reverting a revert is allowed.
 
 **Body**
 
@@ -1400,7 +1402,7 @@ immutable)
 | `PATCH`  | `/api/v1/test-cases/:id/move`              | Member+                      | 200 `TestCase`                       |
 | `DELETE` | `/api/v1/test-cases/:id`                   | Member+                      | 200 `TestCase` (trashed)             |
 | `POST`   | `/api/v1/test-cases/bulk-trash`            | Member+                      | 200 `{ count }`                      |
-| `GET`    | `/api/v1/test-cases/:id/events`            | any auth                     | 200 `{ items }` (oldest-first)       |
+| `GET`    | `/api/v1/test-cases/:id/events`            | any auth                     | 200 `{ items }` (newest-first)       |
 | `POST`   | `/api/v1/test-cases/:id/revert`            | Member+                      | 201 `{ event, case }`                |
 | `GET`    | `/api/v1/projects/:id/trash`               | any auth                     | 200 paginated summaries              |
 | `POST`   | `/api/v1/test-cases/:id/restore`           | Member+                      | 200 `TestCase`                       |

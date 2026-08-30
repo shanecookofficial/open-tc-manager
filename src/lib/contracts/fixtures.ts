@@ -762,6 +762,7 @@ export function createFixtures(): ContractFixtures {
   };
   const snapshotD: CaseEventSnapshot = structuredClone(snapshotA);
 
+  // Chronological story A→B→C→A (not GET list order; GET is newest-first).
   const caseEvents: TestCaseEvent[] = [
     {
       id: 1,

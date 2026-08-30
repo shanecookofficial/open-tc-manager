@@ -394,3 +394,16 @@ restore) while the appended event's snapshot still equals the target.
 3. Users is instance-level. Header product name links home; Users page hides
    the project switcher and has **← Test cases**. Other nav ideas (settings
    gear, sidebar Admin section) deferred unless the PO picks them.
+
+---
+
+**2026-08-30 — History list newest-first.** Human PO: the History panel
+started at the oldest event and read downward. Flip it. `GET
+/test-cases/:id/events` `{ items }` is now **newest → oldest**. `limit`
+is still the most recent N events; they already come back in that order
+(no reverse). Diffs compare each event to the chronologically older one
+(`items[i+1]` in the newest-first array; oldest event has no previous).
+The append-only **story** is unchanged: A→B→C then revert to A is still
+A→B→C→A; the list shows **A, C, B, A**. Fixtures stay chronological
+story order. This supersedes the oldest-first list order in the 2026-08-29
+A1-2 / A3-2 entries.

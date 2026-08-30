@@ -38,6 +38,7 @@ async function directoryIdForSnapshot(
   return directoryId;
 }
 
+/** Newest → oldest. `query.limit` is the most recent N events in that order. */
 export async function listCaseEvents(
   testCaseId: number,
   query: TestCaseEventsQuery,
@@ -49,8 +50,7 @@ export async function listCaseEvents(
     .where(eq(testCaseEvents.testCaseId, testCaseId))
     .orderBy(desc(testCaseEvents.createdAt), desc(testCaseEvents.id))
     .limit(query.limit);
-  recent.reverse();
-  return { items: recent.map(serializeTestCaseEvent) };
+  return { items: recent.map(serializeTestCaseEvent) };}
 }
 
 export async function revertTestCase(

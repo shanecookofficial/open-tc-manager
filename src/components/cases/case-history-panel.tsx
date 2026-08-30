@@ -128,7 +128,10 @@ export function CaseHistoryPanel({
         <ol className="space-y-2">
           {events.map((event, index) => {
             const expanded = expandedId === event.id;
-            const previous = index > 0 ? events[index - 1]!.snapshot : null;
+            const previous =
+              index < events.length - 1
+                ? events[index + 1]!.snapshot
+                : null;
             return (
               <li
                 key={event.id}

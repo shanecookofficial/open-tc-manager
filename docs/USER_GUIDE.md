@@ -145,17 +145,18 @@ forbidden endpoint directly.
 ## Case history and revert (v1.1)
 
 Every create, edit, move, trash, restore, and revert appends an event to the case
-**History** panel on the detail page (oldest → newest). Each row shows when it
+**History** panel on the detail page (newest → oldest). Each row shows when it
 happened, who did it, the action, and a one-line summary. Expand **Show diff**
 to see a git-style diff of that event against the previous one (`-` removed,
-`+` added). The first event is shown as a new-file diff (all additions).
+`+` added). The oldest event is shown as a new-file diff (all additions).
 
 **Revert** (Member and Admin) restores a chosen snapshot as the new current state
 and appends a new event — the timeline is never rewritten.
 
 Example: if a case went **A → B → C** and you revert to the first event (state A),
 history becomes **A → B → C → A**. The case body matches A again; events A, B, and
-C remain in the list. Viewers see history but not the Revert button.
+C remain in the list (newest on top, so the revert appears first). Viewers see
+history but not the Revert button.
 
 Seeded WEB/API cases have **no** history until someone mutates them while signed in.
 

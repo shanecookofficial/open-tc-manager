@@ -67,20 +67,29 @@ test.describe("Case history and revert", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Version C");
 
     const historySection = page.getByRole("region", { name: /History/ });
+    const rows = historySection.locator("ol > li");
     await expect(
       historySection.getByRole("heading", { name: "History (3)" }),
     ).toBeVisible();
-    await expect(historySection.getByText("Created")).toBeVisible();
-    await expect(historySection.getByText("Updated")).toHaveCount(2);
+    await expect(rows).toHaveCount(3);
+    await expect(rows.nth(0)).toContainText("Updated");
+    await expect(rows.nth(0)).toContainText("Version C");
+    await expect(rows.nth(1)).toContainText("Updated");
+    await expect(rows.nth(1)).toContainText("Version B");
+    await expect(rows.nth(2)).toContainText("Created");
+    await expect(rows.nth(2)).toContainText("Version A");
 
-    await historySection.getByRole("button", { name: "Show diff" }).nth(1).click();
+    await rows.nth(1).getByRole("button", { name: "Show diff" }).click();
     const diff = historySection.getByTestId("snapshot-diff");
     await expect(diff).toBeVisible();
     await expect(diff.getByLabel("Title diff")).toContainText("- Version A");
     await expect(diff.getByLabel("Title diff")).toContainText("+ Version B");
     await historySection.getByRole("button", { name: "Hide diff" }).click();
 
-    await historySection.getByRole("button", { name: "Revert" }).first().click();
+    await rows
+      .filter({ hasText: "Created" })
+      .getByRole("button", { name: "Revert" })
+      .click();
     const confirm = page.getByRole("alertdialog");
     await expect(
       confirm.getByRole("heading", { name: "Revert to this version?" }),
@@ -91,7 +100,9 @@ test.describe("Case history and revert", () => {
     await expect(
       historySection.getByRole("heading", { name: "History (4)" }),
     ).toBeVisible();
-    await expect(historySection.getByText("Reverted")).toBeVisible();
-    await expect(historySection.locator("ol > li")).toHaveCount(4);
+    await expect(rows).toHaveCount(4);
+    await expect(rows.nth(0)).toContainText("Reverted");
+    await expect(rows.nth(0)).toContainText("Version A");
+    await expect(rows.nth(3)).toContainText("Created");
   });
 });

@@ -57,6 +57,7 @@ export const testCaseEventSchema = z.object({
 
 export type TestCaseEvent = z.infer<typeof testCaseEventSchema>;
 
+/** `{ items }` newest → oldest. `limit` is the most recent N, already in that order. */
 export const testCaseEventListResponseSchema = z.object({
   items: z.array(testCaseEventSchema),
 });
