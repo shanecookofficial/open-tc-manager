@@ -7,5 +7,5 @@ import { bulkRestore } from "@/lib/api/trash";
 export const POST = apiHandler(
   { body: bulkSelectionWithProjectSchema },
   async ({ body, user }) => json(await bulkRestore(body, requireActor(user))),
-  { auth: "member" },
+  { auth: "cases.bulk" },
 );

@@ -8,5 +8,5 @@ export const POST = apiHandler(
   { params: testCaseIdParamSchema },
   async ({ params, user }) =>
     json(await restoreTestCase(params.id, requireActor(user))),
-  { auth: "member" },
+  { auth: "cases.write" },
 );

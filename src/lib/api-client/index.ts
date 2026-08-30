@@ -12,6 +12,8 @@ import {
   testCaseEventListResponseSchema,
   testCaseListResponseSchema,
   testCaseSchema,
+  roleListResponseSchema,
+  roleSchema,
   userListResponseSchema,
   userSchema,
   type BulkFilter,
@@ -33,7 +35,11 @@ import {
   type ProjectListResponse,
   type ProjectTree,
   type PutTestCaseBody,
+  type CreateRoleBody,
+  type PatchRoleBody,
   type RevertTestCaseBody,
+  type Role,
+  type RoleListResponse,
   type TestCase,
   type TestCaseEventListResponse,
   type TestCaseListResponse,
@@ -153,6 +159,52 @@ export async function changePassword(body: ChangePasswordBody): Promise<void> {
   if (!response.ok && response.status !== 204) {
     const bodyText: unknown = await response.json();
     const parsed = errorBodySchema.safeParse(bodyText);
+    if (parsed.success) {
+      throw new ApiClientError(
+        parsed.data.error.code,
+        parsed.data.error.message,
+        response.status,
+      );
+    }
+    throw new ApiClientError(
+      "INTERNAL_ERROR",
+      "Unexpected server response",
+      response.status,
+    );
+  }
+}
+
+export async function listRoles(): Promise<RoleListResponse> {
+  const response = await apiFetch("/roles");
+  return parseJson(response, roleListResponseSchema, "/roles");
+}
+
+export async function createRole(body: CreateRoleBody): Promise<Role> {
+  const response = await apiFetch("/roles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, roleSchema, "/roles");
+}
+
+export async function updateRole(
+  id: number,
+  body: PatchRoleBody,
+): Promise<Role> {
+  const response = await apiFetch(`/roles/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(response, roleSchema, `/roles/${id}`);
+}
+
+export async function deleteRole(id: number): Promise<void> {
+  const response = await apiFetch(`/roles/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    const body: unknown = await response.json();
+    const parsed = errorBodySchema.safeParse(body);
     if (parsed.success) {
       throw new ApiClientError(
         parsed.data.error.code,

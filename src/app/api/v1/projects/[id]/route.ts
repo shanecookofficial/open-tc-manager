@@ -6,7 +6,7 @@ import { deleteProject, updateProject } from "@/lib/api/projects";
 export const PATCH = apiHandler(
   { params: projectIdParamSchema, body: patchProjectBodySchema },
   async ({ params, body }) => json(await updateProject(params.id, body)),
-  { auth: "admin" },
+  { auth: "projects.write" },
 );
 
 export const DELETE = apiHandler(
@@ -15,5 +15,5 @@ export const DELETE = apiHandler(
     await deleteProject(params.id);
     return noContent();
   },
-  { auth: "admin" },
+  { auth: "projects.write" },
 );

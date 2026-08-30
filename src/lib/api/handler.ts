@@ -119,7 +119,7 @@ export function apiHandler<
       let session: AuthSession | null = null;
       if (auth !== "public") {
         session = await requireSession(request);
-        assertRole(session.user.role, auth);
+        assertRole(session.user, auth);
       }
 
       const rawParams = context?.params ? await context.params : {};

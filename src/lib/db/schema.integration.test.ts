@@ -353,7 +353,7 @@ describe("schema constraints", () => {
     it("rejects an unknown role", async () => {
       await expect(
         insertUser("ada@opentcm.local", "Ada", "owner"),
-      ).rejects.toMatchObject({ code: CHECK_VIOLATION });
+      ).rejects.toMatchObject({ code: FOREIGN_KEY_VIOLATION });
     });
 
     it("rejects a whitespace-only display name", async () => {

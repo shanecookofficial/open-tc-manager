@@ -118,6 +118,16 @@ Decisions: `docs/DECISIONS.md`.
   `.env.example`, DEVELOPMENT.md, README roadmap line for v1.1.
 - **Accept:** adversarial pass: Grok follows SETUP login path verbatim (A5-2).
 
+### A6 · Custom roles
+
+- **Owner:** Grok 4.6 · **Status:** done · **Needs:** A2-2
+- Roles table; Admin locked; Member/Viewer deletable when unused; custom
+  roles with the capability catalog. Route auth is permission-based.
+  Users page Roles section.
+- **Accept:** cannot delete Admin; unused custom role deletes; assigned
+  role is `ROLE_IN_USE`; custom `cases.write` can create a case and cannot
+  create a project.
+
 ### A5-2 · Adversarial docs + e2e gate
 
 - **Owner:** Grok 4.6 · **Status:** done · **Needs:** A4-3, A5-1

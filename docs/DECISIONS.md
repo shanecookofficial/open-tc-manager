@@ -417,3 +417,18 @@ bouncing to the sidebar. Member+ **New folder…** on the Directory picker
 root). On success the new folder is selected. Reuses `CreateDirectoryDialog`
 and `POST /directories`. No API change. Move-case dialog stays picker-only
 unless the PO asks.
+
+---
+
+**2026-08-30 — Custom roles.** Human PO: keep presenting Admin, Member, and
+read-only Viewer, but let an Admin create granular custom roles, and allow
+removing Member and Viewer. Admin must never be deletable.
+
+Defaults stay those three. Custom roles pick from `cases.write`,
+`cases.revert`, `directories.write`, `cases.bulk`, `trash.purge`,
+`projects.write`. User and role administration is **Admin-only** (not a
+grantable permission) so a custom role cannot promote itself. Delete of
+Member/Viewer/custom is `409 ROLE_IN_USE` while anyone still has that
+role; delete/edit of Admin is `409 ROLE_LOCKED`. `users.role` is now a
+slug FK to `roles`. Seed does not recreate Member/Viewer if an Admin
+already deleted them.

@@ -78,6 +78,13 @@ Password rules: minimum 8 characters after trim. No complexity theater.
 
 ## 4. Roles (instance-wide)
 
+Fresh instances present **Admin**, **Member** (default for new users), and
+**Viewer**. Admin is a locked system role and can never be deleted or edited.
+Member and Viewer are built-in and may be deleted when no users remain on
+them. Admins can create custom roles whose permissions are any subset of
+the capability catalog below (except users/roles admin, which stays Admin-only
+so a custom role cannot escalate itself).
+
 | Capability | Viewer | Member | Admin |
 | --- | --- | --- | --- |
 | Log in / out, change own password | yes | yes | yes |

@@ -7,7 +7,7 @@ import {
   SESSION_MAX_AGE_SECONDS,
   type User,
 } from "@/lib/contracts";
-import { db, sessions, users } from "@/lib/db";
+import { db, roles, sessions, users } from "@/lib/db";
 
 import { ApiError } from "./errors";
 import { serializeUser } from "./serialize";
@@ -126,9 +126,11 @@ export async function resolveSessionFromToken(
     .select({
       session: sessions,
       user: users,
+      role: roles,
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
+    .leftJoin(roles, eq(users.role, roles.slug))
     .where(eq(sessions.tokenHash, tokenHash))
     .limit(1);
 
@@ -149,7 +151,7 @@ export async function resolveSessionFromToken(
   return {
     sessionId: row.session.id,
     token,
-    user: serializeUser(row.user),
+    user: serializeUser(row.user, row.role),
   };
 }
 

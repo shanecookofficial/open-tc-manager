@@ -59,10 +59,10 @@ type TrashViewProps = {
 export function TrashView({ project }: TrashViewProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const userRole = user?.role ?? "viewer";
-  const canRestore = canWriteCases(userRole);
-  const canSelect = canBulkTrash(userRole);
-  const canPurge = canPurgeTrash(userRole);
+  const currentUser = user ?? { role: "viewer" };
+  const canRestore = canWriteCases(currentUser);
+  const canSelect = canBulkTrash(currentUser);
+  const canPurge = canPurgeTrash(currentUser);
   const searchParams = useSearchParams();
 
   const directoryParam = searchParams.get("dir");

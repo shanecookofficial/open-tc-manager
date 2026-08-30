@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { permissionSchema } from "./roles";
 import {
   displayNameSchema,
   emailSchema,
@@ -16,6 +17,8 @@ export const userSchema = timestampsSchema.extend({
   email: emailSchema,
   displayName: displayNameSchema,
   role: userRoleSchema,
+  roleName: z.string().min(1).optional(),
+  permissions: z.array(permissionSchema).optional(),
   deactivatedAt: isoDateTimeSchema.nullable(),
 });
 

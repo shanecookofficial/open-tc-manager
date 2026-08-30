@@ -8,5 +8,5 @@ export const PATCH = apiHandler(
   { params: testCaseIdParamSchema, body: moveTestCaseBodySchema },
   async ({ params, body, user }) =>
     json(await moveTestCase(params.id, body, requireActor(user))),
-  { auth: "member" },
+  { auth: "cases.write" },
 );

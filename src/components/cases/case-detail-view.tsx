@@ -32,22 +32,22 @@ import {
 import { ApiClientError, deleteTestCase } from "@/lib/api-client";
 import { canWriteCases } from "@/lib/auth/permissions";
 import { formatDateTime } from "@/lib/format-date";
-import type { Project, TestCase, UserRole } from "@/lib/contracts";
+import type { Project, TestCase, User } from "@/lib/contracts";
 
 type CaseDetailViewProps = {
   testCase: TestCase;
   project: Project;
-  userRole: UserRole;
+  user: Pick<User, "role" | "permissions">;
 };
 
-export function CaseDetailView({ testCase, project, userRole }: CaseDetailViewProps) {
+export function CaseDetailView({ testCase, project, user }: CaseDetailViewProps) {
   const router = useRouter();
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentCase, setCurrentCase] = useState(testCase);
 
-  const canWrite = canWriteCases(userRole);
+  const canWrite = canWriteCases(user);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -173,7 +173,7 @@ export function CaseDetailView({ testCase, project, userRole }: CaseDetailViewPr
 
       <CaseHistoryPanel
         testCase={currentCase}
-        userRole={userRole}
+        user={user}
         onReverted={setCurrentCase}
       />
 

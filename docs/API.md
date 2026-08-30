@@ -91,6 +91,8 @@ v1 — validation failures put the field name in `message`.
 | 403  | `FORBIDDEN`            | Valid session, but the user's role cannot perform the action (PLAN-v1.1 §4).                             |
 | 403  | `USER_DEACTIVATED`     | `POST /auth/login` for a deactivated account. Wrong password on that account is still `INVALID_CREDENTIALS`. |
 | 409  | `EMAIL_TAKEN`          | `POST /users` (or email change, if added later) when that lowercased email already exists.               |
+| 409  | `ROLE_LOCKED`          | Edit or delete the locked Admin role.                                                                    |
+| 409  | `ROLE_IN_USE`          | Delete a role that still has users.                                                                      |
 | 503  | `DATABASE_UNAVAILABLE` | Health check cannot reach Postgres.                                                                      |
 | 500  | `INTERNAL_ERROR`       | Unexpected server failure.                                                                               |
 
@@ -256,7 +258,15 @@ is the interesting case. Those two codes still apply.
 
 ### 1.11 Roles
 
-Instance-wide (every logged-in user can **read** every project). Matrix:
+Instance-wide (every logged-in user can **read** every project). Fresh
+instances ship **Admin**, **Member**, and **Viewer**. Admin is locked.
+Member and Viewer may be deleted when unused. Admins can create custom
+roles with any subset of: `cases.write`, `cases.revert`,
+`directories.write`, `cases.bulk`, `trash.purge`, `projects.write`.
+User and role administration stays **Admin-only** (not grantable on a
+custom role).
+
+Default matrix:
 
 | Capability | Viewer | Member | Admin |
 | --- | --- | --- | --- |
@@ -268,7 +278,7 @@ Instance-wide (every logged-in user can **read** every project). Matrix:
 | Bulk trash / bulk restore | no | yes | yes |
 | Permanent purge | no | no | yes |
 | Create / rename / delete projects, change prefix | no | no | yes |
-| `GET/POST /users`, `PATCH /users/:id` | no | no | yes |
+| Users and roles admin | no | no | yes |
 
 Forbidden actions return **403 `FORBIDDEN`**. Unauthenticated is **401** first
 (do not leak whether a case id exists to an anonymous caller). Viewers hitting
@@ -1123,7 +1133,8 @@ password-change.
 }
 ```
 
-`role` is `admin` | `member` | `viewer`.
+`role` is a role **slug** (`admin`, `member`, `viewer`, or a custom slug).
+Unknown slugs are `404 NOT_FOUND`.
 
 **Success `201`** — full `User`. `Location: /api/v1/users/:id`.
 `deactivatedAt` is `null`.
@@ -1161,7 +1172,7 @@ password-change.
 | Field | Meaning |
 | --- | --- |
 | `displayName` | New display name (1–80 trimmed). History events already written keep the old denormalized name. |
-| `role` | `admin` \| `member` \| `viewer` |
+| `role` | Existing role slug |
 | `deactivatedAt` | ISO-8601 timestamp → deactivate (store this instant). `null` → reactivate. Omit → leave as-is. |
 | `password` | Set a new password for this user. Does not invalidate existing sessions in v1.1. |
 
@@ -1184,6 +1195,20 @@ Last-Admin protection (A2): cannot set `deactivatedAt` to a timestamp, and
 cannot change `role` away from `admin`, when this user is the only remaining
 active Admin (including “cannot deactivate yourself if you are the last
 Admin”). Reactivating a user is always allowed.
+
+---
+
+### `GET /api/v1/roles` / `POST /api/v1/roles`
+
+**Admin.** List or create instance roles. `POST` body:
+`{ name, description?, permissions[] }`. Slug is derived from the name.
+`admin` cannot be created this way.
+
+### `PATCH /api/v1/roles/:id` / `DELETE /api/v1/roles/:id`
+
+**Admin.** Edit name/description/permissions, or delete. Locked Admin →
+`409 ROLE_LOCKED`. Delete while users still have the role → `409 ROLE_IN_USE`.
+Member and Viewer may be deleted when unused.
 
 ---
 
@@ -1359,9 +1384,13 @@ These match `src/lib/contracts/`. Field names are camelCase in JSON.
 `rootCaseCount`, `trashCount`, `directories[]` (recursive `TreeNode`: `id`,
 `name`, `parentId`, `activeCaseCount`, `children[]`)
 
-**User** — `id`, `email`, `displayName`, `role` (`admin` \| `member` \|
-`viewer`), `deactivatedAt` (`null` = can log in), `createdAt`, `updatedAt`.
-Never includes `password` / `passwordHash`.
+**User** — `id`, `email`, `displayName`, `role` (slug), optional `roleName`
+and `permissions[]`, `deactivatedAt` (`null` = can log in), `createdAt`,
+`updatedAt`. Never includes `password` / `passwordHash`. Admin always
+serializes with every grantable permission.
+
+**Role** — `id`, `slug`, `name`, `description`, `builtIn`, `locked`,
+`permissions[]`, `createdAt`, `updatedAt`.
 
 **SessionUserResponse** — `{ user: User }` (login and me)
 
@@ -1386,27 +1415,31 @@ immutable)
 | `GET`    | `/api/v1/users`                            | Admin                        | 200 `{ items }`                      |
 | `POST`   | `/api/v1/users`                            | Admin                        | 201 `User`                           |
 | `PATCH`  | `/api/v1/users/:id`                        | Admin                        | 200 `User`                           |
+| `GET`    | `/api/v1/roles`                            | Admin                        | 200 `{ items }`                      |
+| `POST`   | `/api/v1/roles`                            | Admin                        | 201 `Role`                           |
+| `PATCH`  | `/api/v1/roles/:id`                        | Admin                        | 200 `Role`                           |
+| `DELETE` | `/api/v1/roles/:id`                        | Admin                        | 204 (not Admin; 409 if in use)       |
 | `GET`    | `/api/v1/projects`                         | any auth                     | 200 `{ items }`                      |
-| `POST`   | `/api/v1/projects`                         | Admin                        | 201 `Project`                        |
-| `PATCH`  | `/api/v1/projects/:id`                     | Admin                        | 200 `Project`                        |
-| `DELETE` | `/api/v1/projects/:id`                     | Admin                        | 204                                  |
+| `POST`   | `/api/v1/projects`                         | `projects.write`             | 201 `Project`                        |
+| `PATCH`  | `/api/v1/projects/:id`                     | `projects.write`             | 200 `Project`                        |
+| `DELETE` | `/api/v1/projects/:id`                     | `projects.write`             | 204                                  |
 | `GET`    | `/api/v1/projects/:id/tree`                | any auth                     | 200 `ProjectTree`                    |
-| `POST`   | `/api/v1/directories`                      | Member+                      | 201 `Directory`                      |
-| `PATCH`  | `/api/v1/directories/:id`                  | Member+                      | 200 `Directory`                      |
-| `DELETE` | `/api/v1/directories/:id?mode=`            | Member+                      | 200 `DirectoryDeleteResponse`        |
+| `POST`   | `/api/v1/directories`                      | `directories.write`          | 201 `Directory`                      |
+| `PATCH`  | `/api/v1/directories/:id`                  | `directories.write`          | 200 `Directory`                      |
+| `DELETE` | `/api/v1/directories/:id?mode=`            | `directories.write`          | 200 `DirectoryDeleteResponse`        |
 | `GET`    | `/api/v1/test-cases`                       | any auth                     | 200 paginated summaries              |
-| `POST`   | `/api/v1/test-cases`                       | Member+                      | 201 `TestCase`                       |
+| `POST`   | `/api/v1/test-cases`                       | `cases.write`                | 201 `TestCase`                       |
 | `GET`    | `/api/v1/test-cases/:id`                   | any auth                     | 200 `TestCase`                       |
 | `GET`    | `/api/v1/test-cases/number/:displayNumber` | any auth                     | 200 `TestCase`                       |
-| `PUT`    | `/api/v1/test-cases/:id`                   | Member+                      | 200 `TestCase`                       |
-| `PATCH`  | `/api/v1/test-cases/:id/move`              | Member+                      | 200 `TestCase`                       |
-| `DELETE` | `/api/v1/test-cases/:id`                   | Member+                      | 200 `TestCase` (trashed)             |
-| `POST`   | `/api/v1/test-cases/bulk-trash`            | Member+                      | 200 `{ count }`                      |
+| `PUT`    | `/api/v1/test-cases/:id`                   | `cases.write`                | 200 `TestCase`                       |
+| `PATCH`  | `/api/v1/test-cases/:id/move`              | `cases.write`                | 200 `TestCase`                       |
+| `DELETE` | `/api/v1/test-cases/:id`                   | `cases.write`                | 200 `TestCase` (trashed)             |
+| `POST`   | `/api/v1/test-cases/bulk-trash`            | `cases.bulk`                 | 200 `{ count }`                      |
 | `GET`    | `/api/v1/test-cases/:id/events`            | any auth                     | 200 `{ items }` (newest-first)       |
-| `POST`   | `/api/v1/test-cases/:id/revert`            | Member+                      | 201 `{ event, case }`                |
+| `POST`   | `/api/v1/test-cases/:id/revert`            | `cases.revert`               | 201 `{ event, case }`                |
 | `GET`    | `/api/v1/projects/:id/trash`               | any auth                     | 200 paginated summaries              |
-| `POST`   | `/api/v1/test-cases/:id/restore`           | Member+                      | 200 `TestCase`                       |
-| `POST`   | `/api/v1/test-cases/bulk-restore`          | Member+                      | 200 `{ count }`                      |
-| `DELETE` | `/api/v1/test-cases/:id/permanent`         | Admin                        | 204                                  |
-| `POST`   | `/api/v1/projects/:id/trash/purge`         | Admin                        | 200 `{ count }`                      |
+| `POST`   | `/api/v1/test-cases/:id/restore`           | `cases.write`                | 200 `TestCase`                       |
+| `POST`   | `/api/v1/test-cases/bulk-restore`          | `cases.bulk`                 | 200 `{ count }`                      |
+| `DELETE` | `/api/v1/test-cases/:id/permanent`         | `trash.purge`                | 204                                  |
+| `POST`   | `/api/v1/projects/:id/trash/purge`         | `trash.purge`                | 200 `{ count }`                      |
 | `GET`    | `/api/v1/health`                           | public                       | 200 `{ status, database }`           |

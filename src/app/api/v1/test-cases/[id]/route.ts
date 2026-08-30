@@ -17,12 +17,12 @@ export const PUT = apiHandler(
   { params: testCaseIdParamSchema, body: putTestCaseBodySchema },
   async ({ params, body, user }) =>
     json(await updateTestCase(params.id, body, requireActor(user))),
-  { auth: "member" },
+  { auth: "cases.write" },
 );
 
 export const DELETE = apiHandler(
   { params: testCaseIdParamSchema },
   async ({ params, user }) =>
     json(await softDeleteTestCase(params.id, requireActor(user))),
-  { auth: "member" },
+  { auth: "cases.write" },
 );

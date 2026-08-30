@@ -39,8 +39,8 @@ export function AppHeader({
         ) : user ? (
           <>
             <span className="hidden text-sm sm:inline">{user.displayName}</span>
-            <Badge variant="outline">{roleLabel(user.role)}</Badge>
-            {canManageUsers(user.role) ? (
+            <Badge variant="outline">{roleLabel(user.role, user.roleName)}</Badge>
+            {canManageUsers(user) ? (
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/users">Users</Link>
               </Button>

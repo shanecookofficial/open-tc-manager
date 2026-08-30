@@ -17,5 +17,5 @@ export const POST = apiHandler(
     );
     return created(result, `/api/v1/test-cases/${params.id}`);
   },
-  { auth: "member" },
+  { auth: "cases.revert" },
 );

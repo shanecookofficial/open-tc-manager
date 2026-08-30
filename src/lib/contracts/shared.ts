@@ -74,6 +74,8 @@ export const errorCodeSchema = z.enum([
   "INVALID_CREDENTIALS",
   "USER_DEACTIVATED",
   "EMAIL_TAKEN",
+  "ROLE_LOCKED",
+  "ROLE_IN_USE",
   "DATABASE_UNAVAILABLE",
   "INTERNAL_ERROR",
 ]);
@@ -172,7 +174,15 @@ export type BulkCountResponse = z.infer<typeof bulkCountResponseSchema>;
 
 export const searchQuerySchema = z.string().trim().min(1).max(QUERY_MAX);
 
-export const userRoleSchema = z.enum(["admin", "member", "viewer"]);
+/** Role slug: `admin` / `member` / `viewer` or a custom kebab-case slug. */
+export const ROLE_SLUG_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
+
+export const userRoleSchema = z
+  .string()
+  .trim()
+  .regex(ROLE_SLUG_PATTERN, {
+    message: "Role must be a lowercase slug (letters, digits, hyphens)",
+  });
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 

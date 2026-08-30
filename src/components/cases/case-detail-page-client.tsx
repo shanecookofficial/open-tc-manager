@@ -14,9 +14,11 @@ export function CaseDetailPageClient({
   project,
 }: CaseDetailPageClientProps) {
   const { user } = useAuth();
-  const role = user?.role ?? "viewer";
-
   return (
-    <CaseDetailView testCase={testCase} project={project} userRole={role} />
+    <CaseDetailView
+      testCase={testCase}
+      project={project}
+      user={user ?? { role: "viewer" }}
+    />
   );
 }

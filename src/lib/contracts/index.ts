@@ -30,6 +30,7 @@ export {
   timestampsSchema,
   titleSchema,
   userRoleSchema,
+  ROLE_SLUG_PATTERN,
   emailSchema,
   displayNameSchema,
   passwordSchema,
@@ -144,6 +145,26 @@ export type {
   User,
   UserListResponse,
 } from "./users";
+
+export {
+  ADMIN_PERMISSIONS,
+  MEMBER_PERMISSIONS,
+  PERMISSIONS,
+  VIEWER_PERMISSIONS,
+  createRoleBodySchema,
+  patchRoleBodySchema,
+  permissionSchema,
+  roleIdParamSchema,
+  roleListResponseSchema,
+  roleSchema,
+} from "./roles";
+export type {
+  CreateRoleBody,
+  PatchRoleBody,
+  Permission,
+  Role,
+  RoleListResponse,
+} from "./roles";
 
 export {
   caseEventActionSchema,

@@ -1,21 +1,27 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 
 import type { CreateUserBody, PatchUserBody, User } from "@/lib/contracts";
-import { db, users } from "@/lib/db";
+import { db, roles, users } from "@/lib/db";
 
 import { ApiError, notFound } from "./errors";
 import { hashPassword } from "./password";
 import { isUniqueViolation } from "./pg-errors";
+import { requireRoleSlug } from "./role-records";
 import { serializeUser } from "./serialize";
 
 const LAST_ADMIN_LOCK = 87_104_612;
 
 export async function listUsers(): Promise<{ items: User[] }> {
-  const rows = await db.select().from(users).orderBy(asc(users.email));
-  return { items: rows.map(serializeUser) };
+  const rows = await db
+    .select({ user: users, role: roles })
+    .from(users)
+    .leftJoin(roles, eq(users.role, roles.slug))
+    .orderBy(asc(users.email));
+  return { items: rows.map((row) => serializeUser(row.user, row.role)) };
 }
 
 export async function createUser(body: CreateUserBody): Promise<User> {
+  const role = await requireRoleSlug(body.role);
   try {
     const [row] = await db
       .insert(users)
@@ -29,7 +35,7 @@ export async function createUser(body: CreateUserBody): Promise<User> {
     if (!row) {
       throw new Error("Failed to create user");
     }
-    return serializeUser(row);
+    return serializeUser(row, role);
   } catch (error) {
     if (
       isUniqueViolation(error, "users_email_unique") ||
@@ -66,6 +72,10 @@ export async function updateUser(
 
     const wouldDeactivate =
       body.deactivatedAt !== undefined && body.deactivatedAt !== null;
+    if (body.role !== undefined) {
+      await requireRoleSlug(body.role);
+    }
+
     const wouldDemote = body.role !== undefined && body.role !== "admin";
     if (
       (wouldDeactivate || wouldDemote) &&
@@ -107,6 +117,7 @@ export async function updateUser(
     if (!row) {
       notFound("User", id);
     }
-    return serializeUser(row);
+    const assigned = await requireRoleSlug(row.role);
+    return serializeUser(row, assigned);
   });
 }

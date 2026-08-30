@@ -13,7 +13,7 @@ export function UsersPageClient() {
     );
   }
 
-  if (!user || !canManageUsers(user.role)) {
+  if (!user || !canManageUsers(user)) {
     return (
       <div className="mx-auto max-w-lg p-8 text-center">
         <h1 className="text-lg font-semibold">Forbidden</h1>

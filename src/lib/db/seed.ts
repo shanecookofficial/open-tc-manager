@@ -23,6 +23,7 @@ import { pathToFileURL } from "node:url";
 import { and, eq, isNull, max, sql } from "drizzle-orm";
 
 import { hashPassword } from "@/lib/api/password";
+import { ensureBuiltInRoles, getRoleBySlug } from "@/lib/api/role-records";
 import { createFixtures } from "@/lib/contracts/fixtures";
 import { isUniqueViolation } from "@/lib/api/pg-errors";
 
@@ -136,6 +137,12 @@ async function seedDemoUsers(): Promise<{ inserted: number; skipped: number }> {
       continue;
     }
 
+    const role = await getRoleBySlug(demoUser.role);
+    if (!role) {
+      skipped += 1;
+      continue;
+    }
+
     await db.insert(users).values({
       email: demoUser.email,
       displayName: demoUser.displayName,
@@ -149,6 +156,7 @@ async function seedDemoUsers(): Promise<{ inserted: number; skipped: number }> {
 }
 
 export async function runSeed(): Promise<SeedResult> {
+  await ensureBuiltInRoles();
   const userSeed = await seedDemoUsers();
   const fixtures = createFixtures();
 

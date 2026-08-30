@@ -216,7 +216,7 @@ export function CaseEditorForm({
 }: CaseEditorFormProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const canCreateFolder = canManageDirectories(user?.role ?? "viewer");
+  const canCreateFolder = canManageDirectories(user ?? { role: "viewer" });
   const formId = useId();
   const [title, setTitle] = useState(testCase?.title ?? "");
   const [description, setDescription] = useState(testCase?.description ?? "");

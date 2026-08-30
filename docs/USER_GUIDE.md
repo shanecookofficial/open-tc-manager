@@ -140,6 +140,12 @@ Permanent deletion cannot be undone.
 The last remaining Admin cannot be deactivated or demoted. Deactivated accounts
 cannot sign in until an Admin reactivates them.
 
+On **Users**, Admins can also create **custom roles** and assign them when
+creating or editing a user. Pick the permissions that role needs (write cases,
+revert, folders, bulk trash, purge, projects). **Admin** cannot be deleted.
+**Member** and **Viewer** can be deleted after every user on that role has
+been reassigned.
+
 The UI hides actions your role cannot use; the API returns **403** if you call a
 forbidden endpoint directly.
 

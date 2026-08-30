@@ -28,7 +28,7 @@ export function ProjectSwitcher({ currentPrefix }: ProjectSwitcherProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { projects, refetch } = useProjects();
-  const canManage = user ? canManageProjects(user.role) : false;
+  const canManage = user ? canManageProjects(user) : false;
   const [createOpen, setCreateOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
 
@@ -131,7 +131,7 @@ export function ZeroProjectsOnboarding() {
   const { refetch } = useProjects();
   const router = useRouter();
   const { user } = useAuth();
-  const canManage = user ? canManageProjects(user.role) : false;
+  const canManage = user ? canManageProjects(user) : false;
 
   return (
     <main className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center gap-6 p-8">

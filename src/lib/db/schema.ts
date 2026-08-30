@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   bigint,
+  boolean,
   check,
   index,
   integer,
@@ -17,7 +18,8 @@ import {
  * OpenTCM schema — PLAN.md §5 plus PLAN-v1.1.md §6.
  *
  * Divergences between this file and the checked-in SQL migrations
- * (`drizzle/0000_init.sql`, `drizzle/0001_auth_history.sql`) that
+ * (`drizzle/0000_init.sql`, `drizzle/0001_auth_history.sql`,
+ * `drizzle/0002_custom_roles.sql`) that
  * drizzle-kit cannot express:
  *
  * 1. `test_steps` UNIQUE(test_case_id, position) is DEFERRABLE INITIALLY
@@ -163,6 +165,42 @@ export const testSteps = pgTable(
   ],
 );
 
+/** Instance roles. `admin` is locked; `member` and `viewer` ship built-in and may be deleted. */
+export type RolePermissions = (
+  | "cases.write"
+  | "cases.revert"
+  | "directories.write"
+  | "cases.bulk"
+  | "trash.purge"
+  | "projects.write"
+)[];
+
+export const roles = pgTable(
+  "roles",
+  {
+    id: bigint("id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    builtIn: boolean("built_in").notNull().default(false),
+    locked: boolean("locked").notNull().default(false),
+    permissions: jsonb("permissions").$type<RolePermissions>().notNull(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    unique("roles_slug_unique").on(table.slug),
+    unique("roles_name_unique").on(table.name),
+    check(
+      "roles_name_trimmed_length",
+      sql`length(trim(${table.name})) BETWEEN 1 AND 120`,
+    ),
+    check("roles_slug_format", sql`${table.slug} ~ '^[a-z][a-z0-9-]{0,39}$'`),
+  ],
+);
+
 export const users = pgTable(
   "users",
   {
@@ -173,7 +211,9 @@ export const users = pgTable(
     email: text("email").notNull(),
     displayName: text("display_name").notNull(),
     passwordHash: text("password_hash").notNull(),
-    role: text("role").notNull(),
+    role: text("role")
+      .notNull()
+      .references(() => roles.slug, { onDelete: "restrict" }),
     deactivatedAt: timestamptz("deactivated_at"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
     updatedAt: timestamptz("updated_at").notNull().defaultNow(),
@@ -185,7 +225,6 @@ export const users = pgTable(
       "users_display_name_trimmed_length",
       sql`length(trim(${table.displayName})) BETWEEN 1 AND 80`,
     ),
-    check("users_role", sql`${table.role} IN ('admin', 'member', 'viewer')`),
   ],
 );
 
@@ -260,6 +299,8 @@ export type TestCase = typeof testCases.$inferSelect;
 export type NewTestCase = typeof testCases.$inferInsert;
 export type TestStep = typeof testSteps.$inferSelect;
 export type NewTestStep = typeof testSteps.$inferInsert;
+export type Role = typeof roles.$inferSelect;
+export type NewRole = typeof roles.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Session = typeof sessions.$inferSelect;

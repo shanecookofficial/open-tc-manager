@@ -11,6 +11,7 @@ import { db, users } from "@/lib/db";
 
 import { ApiError } from "./errors";
 import { hashPassword, verifyPassword } from "./password";
+import { ensureBuiltInRoles, getRoleBySlug } from "./role-records";
 import { serializeUser } from "./serialize";
 import {
   clearSessionCookie,
@@ -39,6 +40,7 @@ function envTrimmed(name: string): string | undefined {
  * operators notice. Safe to call on every boot and from login.
  */
 export async function bootstrapAdminIfEmpty(): Promise<BootstrapResult> {
+  await ensureBuiltInRoles();
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${BOOTSTRAP_LOCK})`);
 
@@ -93,7 +95,11 @@ export async function login(
   }
 
   const { token } = await createSession(row.id);
-  return { user: serializeUser(row), cookie: sessionCookieHeader(token) };
+  const role = await getRoleBySlug(row.role);
+  return {
+    user: serializeUser(row, role),
+    cookie: sessionCookieHeader(token),
+  };
 }
 
 export async function logoutSession(

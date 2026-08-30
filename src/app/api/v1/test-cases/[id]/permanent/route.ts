@@ -9,5 +9,5 @@ export const DELETE = apiHandler(
     await permanentlyDeleteTestCase(params.id);
     return noContent();
   },
-  { auth: "admin" },
+  { auth: "trash.purge" },
 );

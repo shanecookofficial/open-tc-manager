@@ -31,12 +31,12 @@ import type {
   CaseEventAction,
   TestCase,
   TestCaseEvent,
-  UserRole,
+  User,
 } from "@/lib/contracts";
 
 type CaseHistoryPanelProps = {
   testCase: TestCase;
-  userRole: UserRole;
+  user: Pick<User, "role" | "permissions">;
   onReverted: (testCase: TestCase) => void;
 };
 
@@ -77,7 +77,7 @@ function eventSummary(event: TestCaseEvent): string {
 
 export function CaseHistoryPanel({
   testCase,
-  userRole,
+  user,
   onReverted,
 }: CaseHistoryPanelProps) {
   const { data, refetch, isLoading } = useAsyncData(
@@ -90,7 +90,7 @@ export function CaseHistoryPanel({
   const [revertTarget, setRevertTarget] = useState<TestCaseEvent | null>(null);
   const [isReverting, setIsReverting] = useState(false);
 
-  const canRevert = canRevertCases(userRole);
+  const canRevert = canRevertCases(user);
 
   const handleRevert = async () => {
     if (!revertTarget) return;

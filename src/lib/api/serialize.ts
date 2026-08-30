@@ -1,23 +1,28 @@
 import type {
   Directory as DirectoryRow,
   Project as ProjectRow,
+  Role as RoleRow,
   TestCase as TestCaseRow,
   TestCaseEvent as TestCaseEventRow,
   TestStep as TestStepRow,
   User as UserRow,
 } from "@/lib/db/schema";
-import type {
-  CaseEventAction,
-  Directory,
-  DirectoryPathSegment,
-  Project,
-  TestCase,
-  TestCaseEvent,
-  TestCaseSummary,
-  TestStep,
-  User,
-  UserRole,
+import {
+  ADMIN_PERMISSIONS,
+  MEMBER_PERMISSIONS,
+  type CaseEventAction,
+  type Directory,
+  type DirectoryPathSegment,
+  type Permission,
+  type Project,
+  type Role,
+  type TestCase,
+  type TestCaseEvent,
+  type TestCaseSummary,
+  type TestStep,
+  type User,
 } from "@/lib/contracts";
+import { roleLabel } from "@/lib/auth/permissions";
 
 export function toIso(date: Date): string {
   return date.toISOString();
@@ -84,12 +89,44 @@ export function serializeSummary(
   };
 }
 
-export function serializeUser(row: UserRow): User {
+function fallbackPermissions(slug: string): Permission[] {
+  if (slug === "admin") {
+    return [...ADMIN_PERMISSIONS];
+  }
+  if (slug === "member") {
+    return [...MEMBER_PERMISSIONS];
+  }
+  return [];
+}
+
+export function serializeRole(row: RoleRow): Role {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    builtIn: row.builtIn,
+    locked: row.locked,
+    permissions: row.slug === "admin" ? [...ADMIN_PERMISSIONS] : row.permissions,
+    createdAt: toIso(row.createdAt),
+    updatedAt: toIso(row.updatedAt),
+  };
+}
+
+export function serializeUser(row: UserRow, role?: RoleRow | null): User {
+  const permissions =
+    row.role === "admin"
+      ? [...ADMIN_PERMISSIONS]
+      : role
+        ? role.permissions
+        : fallbackPermissions(row.role);
   return {
     id: row.id,
     email: row.email,
     displayName: row.displayName,
-    role: row.role as UserRole,
+    role: row.role,
+    roleName: role?.name ?? roleLabel(row.role),
+    permissions,
     deactivatedAt: row.deactivatedAt ? toIso(row.deactivatedAt) : null,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),

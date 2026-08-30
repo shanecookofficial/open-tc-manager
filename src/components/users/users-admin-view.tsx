@@ -34,18 +34,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { RolesAdminView } from "@/components/users/roles-admin-view";
 import { useAsyncData } from "@/hooks/use-async-data";
 import {
   ApiClientError,
   createUser,
+  listRoles,
   listUsers,
   updateUser,
 } from "@/lib/api-client";
 import { roleLabel } from "@/lib/auth/permissions";
 import { formatDateTime } from "@/lib/format-date";
-import type { User, UserRole } from "@/lib/contracts";
-
-const ROLES: UserRole[] = ["admin", "member", "viewer"];
+import type { User } from "@/lib/contracts";
 
 type UserDialogState =
   | { kind: "create" }
@@ -60,6 +60,15 @@ export function UsersAdminView() {
     [],
   );
   const users = data ?? [];
+  const { data: roleData, refetch: refetchRoles } = useAsyncData(
+    () => listRoles().then((response) => response.items),
+    [],
+  );
+  const assignableRoles = roleData ?? [];
+  const defaultRoleSlug =
+    assignableRoles.find((role) => role.slug === "member")?.slug ??
+    assignableRoles.find((role) => !role.locked)?.slug ??
+    "admin";
   const activeAdminCount = users.filter(
     (user) => user.role === "admin" && user.deactivatedAt === null,
   ).length;
@@ -74,16 +83,16 @@ export function UsersAdminView() {
 
   const [createEmail, setCreateEmail] = useState("");
   const [createDisplayName, setCreateDisplayName] = useState("");
-  const [createRole, setCreateRole] = useState<UserRole>("member");
+  const [createRole, setCreateRole] = useState("member");
   const [createPassword, setCreatePassword] = useState("");
 
   const [editPassword, setEditPassword] = useState("");
-  const [editRole, setEditRole] = useState<UserRole>("member");
+  const [editRole, setEditRole] = useState("member");
 
   const openCreate = () => {
     setCreateEmail("");
     setCreateDisplayName("");
-    setCreateRole("member");
+    setCreateRole(defaultRoleSlug);
     setCreatePassword("");
     setDialog({ kind: "create" });
   };
@@ -209,7 +218,9 @@ export function UsersAdminView() {
               <TableCell className="font-mono text-sm">{user.email}</TableCell>
               <TableCell>{user.displayName}</TableCell>
               <TableCell>
-                <Badge variant="outline">{roleLabel(user.role)}</Badge>
+                <Badge variant="outline">
+                  {roleLabel(user.role, user.roleName)}
+                </Badge>
               </TableCell>
               <TableCell>
                 {user.deactivatedAt ? (
@@ -312,12 +323,12 @@ export function UsersAdminView() {
                 id="create-role"
                 className="flex h-9 w-full rounded-md border bg-background px-3 text-sm"
                 value={createRole}
-                onChange={(event) =>
-                  setCreateRole(event.target.value as UserRole)
-                }
+                onChange={(event) => setCreateRole(event.target.value)}
               >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>{roleLabel(role)}</option>
+                {assignableRoles.map((role) => (
+                  <option key={role.slug} value={role.slug}>
+                    {role.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -388,12 +399,12 @@ export function UsersAdminView() {
               id="edit-role"
               className="flex h-9 w-full rounded-md border bg-background px-3 text-sm"
               value={editRole}
-              onChange={(event) =>
-                setEditRole(event.target.value as UserRole)
-              }
+              onChange={(event) => setEditRole(event.target.value)}
             >
-              {ROLES.map((role) => (
-                <option key={role} value={role}>{roleLabel(role)}</option>
+              {assignableRoles.map((role) => (
+                <option key={role.slug} value={role.slug}>
+                  {role.name}
+                </option>
               ))}
             </select>
             {dialog?.kind === "role" &&
@@ -449,6 +460,8 @@ export function UsersAdminView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RolesAdminView onChanged={refetchRoles} />
     </div>
   );
 }

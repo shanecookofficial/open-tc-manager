@@ -52,10 +52,10 @@ type RepositoryViewProps = {
 export function RepositoryView({ project }: RepositoryViewProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const userRole = user?.role ?? "viewer";
-  const canWrite = canWriteCases(userRole);
-  const canSelect = canBulkTrash(userRole);
-  const canManageDirs = canManageDirectories(userRole);
+  const currentUser = user ?? { role: "viewer" };
+  const canWrite = canWriteCases(currentUser);
+  const canSelect = canBulkTrash(currentUser);
+  const canManageDirs = canManageDirectories(currentUser);
   const searchParams = useSearchParams();
 
   const directoryParam = searchParams.get("dir");

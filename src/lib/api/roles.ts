@@ -1,28 +1,23 @@
-import type { UserRole } from "@/lib/contracts";
+import type { Permission, User } from "@/lib/contracts";
 
 import { ApiError } from "./errors";
+import { hasPermission, isAdminRole } from "@/lib/auth/permissions";
 
 /** Route auth policy. Default in `apiHandler` is `"authenticated"`. */
-export type AuthLevel = "public" | "authenticated" | "member" | "admin";
+export type AuthLevel = "public" | "authenticated" | "admin" | Permission;
 
-const RANK: Record<UserRole, number> = {
-  viewer: 0,
-  member: 1,
-  admin: 2,
-};
-
-export function roleAllowed(role: UserRole, level: AuthLevel): boolean {
+export function roleAllowed(user: User, level: AuthLevel): boolean {
   if (level === "public" || level === "authenticated") {
     return true;
   }
-  if (level === "member") {
-    return RANK[role] >= RANK.member;
+  if (level === "admin") {
+    return isAdminRole(user.role);
   }
-  return role === "admin";
+  return hasPermission(user, level);
 }
 
-export function assertRole(role: UserRole, level: AuthLevel): void {
-  if (!roleAllowed(role, level)) {
+export function assertRole(user: User, level: AuthLevel): void {
+  if (!roleAllowed(user, level)) {
     throw new ApiError(
       "FORBIDDEN",
       "You do not have permission to perform this action.",
