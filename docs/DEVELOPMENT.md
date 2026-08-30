@@ -21,8 +21,9 @@ cp .env.example .env   # optional on first run; compose sets DATABASE_URL for th
 docker compose up
 ```
 
-On the **first run**, once both containers are up, apply migrations (and optionally
-load the demo data) from a second terminal — the dev stack does not run them for you:
+On the **first run**, wait until `docker compose logs app` shows Next.js Ready
+(`npm ci` finished), then apply migrations (and optionally load demo data) from
+a second terminal — the dev stack does not run them for you:
 
 ```bash
 docker compose exec app npm run db:migrate
@@ -169,3 +170,9 @@ psql "$DATABASE_URL" -c "SELECT count(*) FROM test_cases"
 - **`.env` not loaded:** Next.js loads `.env` automatically for local development.
   Ensure the file exists at the repository root and is not committed (it is
   listed in `.gitignore`).
+- **`tsx: not found` on `docker compose exec app npm run db:seed`:** Compose
+  keeps `node_modules` in a named volume and runs `npm ci` on startup. Seed
+  before that finishes, or with a stale volume, cannot see `tsx`. Wait until
+  the app logs show Ready, then `docker compose exec app npm ci` and seed
+  again. To reset the volume: `docker compose down` and
+  `docker volume rm open-tc-manager_app_node_modules`, then `docker compose up`.

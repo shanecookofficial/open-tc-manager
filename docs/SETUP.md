@@ -471,6 +471,7 @@ that already has OpenTCM tables (`ERROR: schema "drizzle" already exists`).
 | Sign in: “Email or password is incorrect” and empty instance | `users` is empty and `BOOTSTRAP_ADMIN_*` was not set (or not passed into the container). Set both vars (password 8+ chars) and restart, or run `npm run db:seed`.                         |
 | Docker: bootstrap vars in `.env` ignored             | `docker-compose.prod.yml` must forward `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` into the `app` service. Recreate the container after editing `.env`.                           |
 | `systemctl: System has not been booted with systemd` | Start Postgres without systemd; the packages can still be installed.                                                                                                                      |
+| `tsx: not found` on `docker compose exec app npm run db:seed` | **Dev** Compose (`docker-compose.yml`), not the production file. `tsx` is a devDependency in the `app_node_modules` volume. Wait until the app logs show Ready, then `docker compose exec app npm ci` and retry. If it still fails, recreate that volume (see [`DEVELOPMENT.md`](DEVELOPMENT.md)). Seed is optional if you already have users; you still need `db:migrate` for custom roles. |
 
 ---
 
