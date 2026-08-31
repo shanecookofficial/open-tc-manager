@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>COMBO://ODDS</title>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<style>
+  @import url('https://cdnjs.cloudflare.com/ajax/libs/orbitron/1.0.0/orbitron.min.css');
+
+  :root{
+    --void:#05060a;
+    --void-2:#0a0e17;
+    --panel:#0d1220;
+    --cyan:#04f2ea;
+    --cyan-dim:#0a8f8a;
+    --magenta:#ff2ee0;
+    --magenta-dim:#8f1a80;
+    --yellow:#f4e04d;
+    --red:#ff3860;
+    --text:#c7f9f5;
+    --text-dim:#5a7a82;
+    --mono: 'Share Tech Mono','Courier New',monospace;
+    --display: 'Orbitron','Share Tech Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      linear-gradient(rgba(4,242,234,0.04) 1px, transparent 1px) 0 0 / 100% 28px,
+      radial-gradient(900px 500px at 15% -10%, rgba(255,46,224,0.15), transparent 60%),
+      radial-gradient(900px 600px at 85% 0%, rgba(4,242,234,0.12), transparent 55%),
+      var(--void);
+    color:var(--text);
+    font-family:var(--mono);
+    padding:36px 16px 90px;
+    min-height:100vh;
+    position:relative;
+  }
+  body::before{
+    content:'';
+    position:fixed;inset:0;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events:none;
+    z-index:999;
+    mix-blend-mode:overlay;
+  }
+
+  .wrap{max-width:780px;margin:0 auto;position:relative;}
+
+  header{margin-bottom:30px;}
+  .eyebrow{
+    font-size:11px;letter-spacing:.35em;text-transform:uppercase;
+    color:var(--magenta);margin-bottom:10px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .eyebrow::before{
+    content:'';width:7px;height:7px;background:var(--magenta);
+    box-shadow:0 0 8px var(--magenta), 0 0 16px var(--magenta);
+    animation:blink 1.6s infinite steps(2);
+  }
+  @keyframes blink{50%{opacity:.2;}}
+  h1{
+    font-family:var(--display);
+    font-size:34px;font-weight:900;margin:0 0 10px;
+    color:var(--cyan);letter-spacing:.03em;
+    text-shadow:0 0 6px rgba(4,242,234,0.8), 0 0 26px rgba(4,242,234,0.35);
+    text-transform:uppercase;
+  }
+  .sub{color:var(--text-dim);font-size:13px;line-height:1.6;max-width:58ch;}
+  .sub b{color:var(--cyan);font-weight:400;}
+
+  .card{
+    background:linear-gradient(180deg, rgba(13,18,32,0.9), rgba(6,9,16,0.9));
+    border:1px solid rgba(4,242,234,0.25);
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    padding:22px;
+    margin-bottom:18px;
+    position:relative;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .card::before{
+    content:'';position:absolute;top:0;left:0;width:40%;height:1px;
+    background:linear-gradient(90deg,var(--cyan),transparent);
+    box-shadow:0 0 8px var(--cyan);
+  }
+  .card h2{
+    font-family:var(--display);
+    font-size:14px;margin:0 0 16px;color:var(--magenta);
+    text-transform:uppercase;letter-spacing:.16em;font-weight:700;
+    display:flex;align-items:center;gap:10px;
+  }
+  .card h2::after{
+    content:'';flex:1;height:1px;
+    background:linear-gradient(90deg, rgba(255,46,224,0.5), transparent);
+  }
+
+  .row{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+  label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;}
+  input[type=text], input[type=number]{
+    background:var(--void-2);
+    border:1px solid rgba(4,242,234,0.3);
+    color:var(--cyan);
+    font-family:var(--mono);
+    font-size:13px;
+    padding:8px 10px;
+    outline:none;
+    caret-color:var(--magenta);
+  }
+  input::placeholder{color:var(--text-dim); opacity:.6;}
+  input[type=text]{width:170px;}
+  input[type=number]{width:75px;}
+  input:focus{
+    border-color:var(--magenta);
+    box-shadow:0 0 0 1px var(--magenta), 0 0 12px rgba(255,46,224,0.4);
+  }
+
+  .deckline{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:4px;}
+
+  .cat-list{display:flex;flex-direction:column;gap:8px;}
+  .cat-row{
+    display:flex;align-items:center;gap:10px;
+    background:rgba(4,242,234,0.03);
+    padding:9px 11px;
+    border:1px solid rgba(4,242,234,0.15);
+    border-left:2px solid var(--cyan-dim);
+  }
+  .cat-row .idx{color:var(--cyan);font-size:11px;width:20px;font-family:var(--display);}
+  .swatch{width:9px;height:9px;flex:none;box-shadow:0 0 6px currentColor;}
+
+  .empty-state{
+    color:var(--text-dim);font-size:12px;padding:18px 4px;
+    border:1px dashed rgba(4,242,234,0.2);text-align:center;
+    letter-spacing:.05em;
+  }
+
+  .btn{
+    background:transparent;
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    font-family:var(--mono);
+    font-size:12px;
+    padding:8px 14px;
+    cursor:pointer;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    transition:all .12s;
+    clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  }
+  .btn:hover{
+    background:var(--cyan);color:var(--void);
+    box-shadow:0 0 14px rgba(4,242,234,0.6);
+  }
+  .btn.ghost{border-color:rgba(199,249,245,0.25);color:var(--text-dim);}
+  .btn.ghost:hover{background:rgba(4,242,234,0.1);color:var(--cyan);box-shadow:none;}
+  .btn.danger{border-color:rgba(255,56,96,0.5);color:var(--red);}
+  .btn.danger:hover{background:var(--red);color:var(--void);box-shadow:0 0 14px rgba(255,56,96,0.6);}
+  .btn.small{padding:5px 9px;font-size:10px;}
+  .btn.full{width:100%;padding:14px;font-size:13px;font-weight:700;}
+  .btn.magenta{border-color:var(--magenta);color:var(--magenta);}
+  .btn.magenta:hover{background:var(--magenta);color:var(--void);box-shadow:0 0 14px rgba(255,46,224,0.6);}
+
+  .other-line{
+    margin-top:12px;font-size:11px;color:var(--text-dim);
+    display:flex;justify-content:space-between;
+    border-top:1px dashed rgba(4,242,234,0.2);padding-top:12px;
+    letter-spacing:.05em;text-transform:uppercase;
+  }
+  .other-line span.val{color:var(--cyan);}
+  .other-line span.warn{color:var(--red);text-shadow:0 0 6px rgba(255,56,96,0.6);}
+
+  .combo-group{
+    border:1px solid rgba(255,46,224,0.3);
+    padding:16px;
+    margin-bottom:12px;
+    background:rgba(255,46,224,0.03);
+    clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  }
+  .combo-group .head{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;
+  }
+  .combo-group .head .label{
+    font-family:var(--display);font-size:12px;color:var(--magenta);
+    text-transform:uppercase;letter-spacing:.1em;
+  }
+  .req-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;}
+  .req-row span{color:var(--text-dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em;}
+  .req-row select{
+    background:var(--void-2);border:1px solid rgba(4,242,234,0.3);
+    color:var(--cyan);font-family:var(--mono);font-size:13px;
+    padding:7px 8px;outline:none;
+  }
+  .req-row select:focus{border-color:var(--magenta);}
+  .or-divider{
+    text-align:center;font-size:11px;color:var(--yellow);letter-spacing:.3em;
+    margin:10px 0;text-shadow:0 0 8px rgba(244,224,77,0.5);
+    font-family:var(--display);
+  }
+
+  .result{
+    text-align:center;padding:32px 20px;
+  }
+  .result .pct{
+    font-family:var(--display);
+    font-size:60px;font-weight:900;color:var(--cyan);
+    line-height:1;
+    text-shadow:0 0 10px var(--cyan), 0 0 40px rgba(4,242,234,0.5);
+  }
+  .result .frac{color:var(--text-dim);font-size:12px;margin-top:10px;letter-spacing:.05em;}
+  .result .odds{color:var(--magenta);font-size:14px;margin-top:12px;text-transform:uppercase;letter-spacing:.08em;text-shadow:0 0 8px rgba(255,46,224,0.4);}
+  .result .bad{color:var(--red);font-size:12px;margin-top:10px;letter-spacing:.03em;}
+
+  .footnote{color:var(--text-dim);font-size:11px;line-height:1.7;margin-top:24px;text-align:center;opacity:.7;}
+  .footnote code{color:var(--cyan);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">System // Probability Engine</div>
+    <h1>Combo://Odds</h1>
+    <div class="sub">Load your deck parameters, define your card groups, then specify the winning combo. <b>Every group joined with OR counts as a hit.</b> Requirements demand distinct copies — listing the same card twice in one combo means you need 2 copies of it.</div>
+  </header>
+
+  <div class="card">
+    <h2>Deck Parameters</h2>
+    <div class="deckline">
+      <div class="row"><label>Deck Size</label><input type="number" id="deckSize" placeholder="e.g. 50" min="1"></div>
+      <div class="row"><label>Hand Size</label><input type="number" id="handSize" placeholder="e.g. 5" min="1"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Card Groups</h2>
+    <div class="cat-list" id="catList"></div>
+    <div class="row" style="margin-top:14px;">
+      <button class="btn" id="addCat">+ New Group</button>
+    </div>
+    <div class="other-line">
+      <span>Remainder / Unspecified Cards</span>
+      <span id="otherCount" class="val">—</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Target Combo</h2>
+    <div id="comboGroups"></div>
+    <button class="btn magenta" id="addCombo">+ Add OR'd Combo</button>
+  </div>
+
+  <button class="btn full" id="calcBtn">▶ Run Calculation</button>
+
+  <div class="card result" id="resultCard" style="display:none;margin-top:18px;">
+    <div class="eyebrow" style="justify-content:center;">Opening Hand Only</div>
+    <div class="pct" id="pctOut">—</div>
+    <div class="frac" id="fracOut"></div>
+    <div class="odds" id="oddsOut"></div>
+    <div class="bad" id="badOut"></div>
+  </div>
+
+  <div class="card result" id="resultCardMulligan" style="display:none;margin-top:18px;border-color:rgba(255,46,224,0.35);">
+    <div class="eyebrow" style="justify-content:center;color:var(--magenta);">With Mulligan Rule Applied</div>
+    <div class="pct" id="pctOutM" style="color:var(--magenta);text-shadow:0 0 10px var(--magenta), 0 0 40px rgba(255,46,224,0.5);">—</div>
+    <div class="frac" id="fracOutM"></div>
+    <div style="text-align:left;margin-top:18px;font-size:12px;color:var(--text-dim);border-top:1px dashed rgba(255,46,224,0.25);padding-top:14px;">
+      <div class="row" style="justify-content:space-between;"><span>Opening hand alone</span><span id="mBreakInit" style="color:var(--cyan);">—</span></div>
+      <div class="row" style="justify-content:space-between;"><span>+ Gained: full mulligan (0 relevant cards)</span><span id="mBreakZero" style="color:var(--cyan);">—</span></div>
+      <div class="row" style="justify-content:space-between;"><span>+ Gained: partial mulligan (keep best 1)</span><span id="mBreakKeep" style="color:var(--cyan);">—</span></div>
+    </div>
+  </div>
+
+  <div class="footnote">Exact solve via multivariate hypergeometric enumeration — every possible hand composition weighted by <code>C(a,k)·C(b,k)·.../C(N,n)</code>, summed where your combo condition holds. The mulligan figure enumerates every opening hand individually and calculates the exact conditional odds from the specific reduced deck it leaves behind — for "keep best 1" hands, it assumes the optimal card is kept each time.</div>
+
+</div>
+
+<script>
+const colors = ['#04f2ea','#ff2ee0','#f4e04d','#7a5fff','#ff6b3f','#3fffb0','#ff3860','#5b8ac9'];
+
+let categories = [];
+let comboGroups = [];
+
+function renderCats(){
+  const list = document.getElementById('catList');
+  list.innerHTML = '';
+  if(categories.length === 0){
+    list.innerHTML = '<div class="empty-state">No card groups defined // click + New Group</div>';
+  }
+  categories.forEach((c,i)=>{
+    const row = document.createElement('div');
+    row.className = 'cat-row';
+    row.innerHTML = `
+      <span class="idx">${String(i+1).padStart(2,'0')}</span>
+      <span class="swatch" style="background:${colors[i%colors.length]};color:${colors[i%colors.length]}"></span>
+      <input type="text" data-idx="${i}" data-field="name" value="${c.name}" placeholder="card name">
+      <label style="margin-left:auto;">Qty</label>
+      <input type="number" data-idx="${i}" data-field="count" value="${c.count}" min="0">
+      <button class="btn danger small" data-remove="${i}">✕</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const idx = +e.target.dataset.idx;
+      const field = e.target.dataset.field;
+      categories[idx][field] = field==='count' ? Math.max(0, parseInt(e.target.value)||0) : e.target.value;
+      renderOther();
+      renderCombos();
+    });
+  });
+  list.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const idx = +e.target.dataset.remove;
+      categories.splice(idx,1);
+      comboGroups.forEach(g=>{
+        for(let i=g.length-1;i>=0;i--){
+          if(g[i].cat===idx) g.splice(i,1);
+          else if(g[i].cat>idx) g[i].cat--;
+        }
+      });
+      renderCats();
+      renderOther();
+      renderCombos();
+    });
+  });
+  renderOther();
+}
+
+function renderOther(){
+  const deckSize = parseInt(document.getElementById('deckSize').value)||0;
+  const used = categories.reduce((s,c)=>s+c.count,0);
+  const other = deckSize - used;
+  const el = document.getElementById('otherCount');
+  el.textContent = other + ' cards';
+  el.className = other < 0 ? 'warn' : 'val';
+}
+
+function renderCombos(){
+  const wrap = document.getElementById('comboGroups');
+  wrap.innerHTML = '';
+  if(comboGroups.length === 0){
+    wrap.innerHTML = '<div class="empty-state">No combo defined // click + Add OR\u2019d Combo</div>';
+  }
+  comboGroups.forEach((group, gi)=>{
+    if(gi>0){
+      const div = document.createElement('div');
+      div.className='or-divider';
+      div.textContent = '// OR //';
+      wrap.appendChild(div);
+    }
+    const gdiv = document.createElement('div');
+    gdiv.className='combo-group';
+    let reqHtml = `<div class="head"><span class="label">Combo ${gi+1}</span>
+      <button class="btn danger small" data-remgroup="${gi}">Remove</button></div>`;
+    if(categories.length === 0){
+      reqHtml += `<div style="color:var(--text-dim);font-size:12px;">Add card groups above first.</div>`;
+    } else {
+      group.forEach((req, ri)=>{
+        reqHtml += `<div class="req-row">
+          <span>Need &ge;</span>
+          <input type="number" min="1" value="${req.min}" data-g="${gi}" data-r="${ri}" data-f="min" style="width:50px;">
+          <select data-g="${gi}" data-r="${ri}" data-f="cat">
+            ${categories.map((c,ci)=>`<option value="${ci}" ${ci===req.cat?'selected':''}>${c.name||'(group '+(ci+1)+')'}</option>`).join('')}
+          </select>
+          <button class="btn ghost small" data-remreq="${gi}:${ri}">✕</button>
+        </div>`;
+      });
+      reqHtml += `<button class="btn ghost small" data-addreq="${gi}">+ AND requirement</button>`;
+    }
+    gdiv.innerHTML = reqHtml;
+    wrap.appendChild(gdiv);
+  });
+
+  wrap.querySelectorAll('input[data-f], select[data-f]').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const g = +e.target.dataset.g, r = +e.target.dataset.r, f = e.target.dataset.f;
+      comboGroups[g][r][f] = f==='min' ? Math.max(1,parseInt(e.target.value)||1) : +e.target.value;
+    });
+  });
+  wrap.querySelectorAll('[data-remgroup]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      comboGroups.splice(+e.target.dataset.remgroup,1);
+      renderCombos();
+    });
+  });
+  wrap.querySelectorAll('[data-addreq]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const g = +e.target.dataset.addreq;
+      comboGroups[g].push({cat:0, min:1});
+      renderCombos();
+    });
+  });
+  wrap.querySelectorAll('[data-remreq]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const [g,r] = e.target.dataset.remreq.split(':').map(Number);
+      comboGroups[g].splice(r,1);
+      if(comboGroups[g].length===0) comboGroups.splice(g,1);
+      renderCombos();
+    });
+  });
+}
+
+document.getElementById('addCat').addEventListener('click', ()=>{
+  categories.push({name:'', count:4});
+  renderCats();
+  renderCombos();
+});
+document.getElementById('addCombo').addEventListener('click', ()=>{
+  if(categories.length === 0){
+    renderCombos();
+    return;
+  }
+  comboGroups.push([{cat:0, min:1}]);
+  renderCombos();
+});
+document.getElementById('deckSize').addEventListener('input', renderOther);
+
+const nCrCache = new Map();
+function nCr(n,k){
+  if(k<0||k>n||n<0) return 0;
+  k = Math.min(k, n-k);
+  const key = n+','+k;
+  if(nCrCache.has(key)) return nCrCache.get(key);
+  let result = 1;
+  for(let i=0;i<k;i++){
+    result *= (n-i)/(i+1);
+  }
+  nCrCache.set(key, result);
+  return result;
+}
+
+// Enumerates every way to draw `drawSize` cards from categories with sizes
+// countsArr, calling onVector(kVec, ways) for each valid composition.
+function enumerateCompositions(countsArr, drawSize, onVector){
+  const m = countsArr.length;
+  const k = new Array(m).fill(0);
+  function rec(i, remaining){
+    if(i === m-1){
+      if(remaining > countsArr[i] || remaining < 0) return;
+      k[i] = remaining;
+      let ways = 1;
+      for(let j=0;j<m;j++){ ways *= nCr(countsArr[j], k[j]); }
+      onVector(k.slice(), ways);
+      return;
+    }
+    const maxK = Math.min(countsArr[i], remaining);
+    for(let ki=0; ki<=maxK; ki++){
+      k[i] = ki;
+      rec(i+1, remaining-ki);
+    }
+  }
+  rec(0, drawSize);
+}
+
+// Computes: P(combo already in opening hand), plus P(combo after applying
+// the mulligan rule): 0 relevant cards -> full mulligan (redraw a full hand);
+// 1+ relevant cards but incomplete -> keep whichever single relevant card
+// gives the best odds, bottom the rest, redraw (handSize-1) new cards.
+function computeStats(categories, comboGroups, deckSize, handSize){
+  const relevantIndices = [...new Set(comboGroups.flat().map(r=>r.cat))];
+  const relevantCounts = relevantIndices.map(idx=>categories[idx].count);
+  const totalRelevant = relevantCounts.reduce((a,b)=>a+b,0);
+  const irrelevantCount = deckSize - totalRelevant;
+  const R = relevantIndices.length;
+
+  // Requirements within a group demand distinct copies, so multiple
+  // requirements on the same category stack: "≥1 X AND ≥1 X" means ≥2 X.
+  function conditionMet(relVec){
+    return comboGroups.some(group=>{
+      if(group.length === 0) return false;
+      const needed = new Map();
+      for(const req of group){
+        needed.set(req.cat, (needed.get(req.cat)||0) + req.min);
+      }
+      for(const [cat, min] of needed){
+        if(relVec[relevantIndices.indexOf(cat)] < min) return false;
+      }
+      return true;
+    });
+  }
+
+  const totalWaysOuter = nCr(deckSize, handSize);
+  let successWeight = 0;   // opening hands that already win
+  let zeroWeight = 0;      // opening hands with 0 relevant cards
+  let keepWeight = 0;      // sum of ways * (best conditional win-prob) for 1+-relevant-but-incomplete hands
+
+  const outerCountsArr = [...relevantCounts, irrelevantCount];
+
+  enumerateCompositions(outerCountsArr, handSize, (kVec, ways)=>{
+    const relPart = kVec.slice(0, R);
+    const sumRel = relPart.reduce((a,b)=>a+b,0);
+
+    if(conditionMet(relPart)){
+      successWeight += ways;
+      return;
+    }
+    if(sumRel === 0){
+      zeroWeight += ways;
+      return;
+    }
+    // keep-best-1 bucket
+    const irrelevantPart = kVec[R];
+    const remainingRelevant = relevantCounts.map((c,i)=>c - relPart[i]);
+    const remainingIrrelevant = irrelevantCount - irrelevantPart;
+    const remainingDeckSize = deckSize - handSize;
+    const drawSize2 = handSize - 1;
+    const totalWaysInner = nCr(remainingDeckSize, drawSize2);
+
+    const innerVectors = [];
+    enumerateCompositions([...remainingRelevant, remainingIrrelevant], drawSize2, (kVec2, ways2)=>{
+      innerVectors.push([kVec2.slice(0,R), ways2]);
+    });
+
+    let bestProb = 0;
+    for(let j=0;j<R;j++){
+      if(relPart[j] < 1) continue;
+      let innerSuccessWays = 0;
+      for(const [newRel, ways2] of innerVectors){
+        const combined = newRel.slice();
+        combined[j] += 1;
+        if(conditionMet(combined)) innerSuccessWays += ways2;
+      }
+      const probJ = totalWaysInner>0 ? innerSuccessWays/totalWaysInner : 0;
+      if(probJ > bestProb) bestProb = probJ;
+    }
+    keepWeight += ways * bestProb;
+  });
+
+  // full-mulligan (zero-relevant-card) follow-up draw
+  const remainingDeckSizeZero = deckSize - handSize;
+  const totalWaysP2 = nCr(remainingDeckSizeZero, handSize);
+  let p2SuccessWays = 0;
+  enumerateCompositions([...relevantCounts, irrelevantCount - handSize], handSize, (kVec, ways)=>{
+    const relPart = kVec.slice(0, R);
+    if(conditionMet(relPart)) p2SuccessWays += ways;
+  });
+  const p2 = totalWaysP2>0 ? p2SuccessWays/totalWaysP2 : 0;
+
+  const pInitial = successWeight / totalWaysOuter;
+  const pFromZero = (zeroWeight * p2) / totalWaysOuter;
+  const pFromKeep = keepWeight / totalWaysOuter;
+  const pTotal = pInitial + pFromZero + pFromKeep;
+
+  return { pInitial, pFromZero, pFromKeep, pTotal, favorable: successWeight, totalHands: totalWaysOuter };
+}
+
+function calculate(){
+  const deckSize = parseInt(document.getElementById('deckSize').value)||0;
+  const handSize = parseInt(document.getElementById('handSize').value)||0;
+  const counts = categories.map(c=>c.count);
+  const usedTotal = counts.reduce((a,b)=>a+b,0);
+  const other = deckSize - usedTotal;
+
+  const resultCard = document.getElementById('resultCard');
+  const resultCardM = document.getElementById('resultCardMulligan');
+  resultCard.style.display = 'block';
+  resultCardM.style.display = 'none';
+  const badOut = document.getElementById('badOut');
+  badOut.textContent = '';
+  document.getElementById('pctOut').textContent = '—';
+  document.getElementById('fracOut').textContent = '';
+  document.getElementById('oddsOut').textContent = '';
+
+  if(deckSize <= 0){
+    badOut.textContent = 'ERR // Set a deck size first.';
+    return;
+  }
+  if(other < 0){
+    badOut.textContent = 'ERR // Card group quantities exceed deck size.';
+    return;
+  }
+  if(comboGroups.length===0 || comboGroups.every(g=>g.length===0)){
+    badOut.textContent = 'ERR // Define at least one combo requirement.';
+    return;
+  }
+  if(handSize > deckSize || handSize <= 0){
+    badOut.textContent = 'ERR // Hand size must be between 1 and deck size.';
+    return;
+  }
+  if(handSize*2 > deckSize){
+    badOut.textContent = 'ERR // Deck needs at least 2x hand size for the mulligan calculation to have cards left to draw from.';
+    return;
+  }
+
+  const stats = computeStats(categories, comboGroups, deckSize, handSize);
+
+  document.getElementById('pctOut').textContent = (stats.pInitial*100).toFixed(2) + '%';
+  document.getElementById('fracOut').textContent = `${Math.round(stats.favorable).toLocaleString()} / ${Math.round(stats.totalHands).toLocaleString()} HANDS`;
+  const oneIn = stats.pInitial>0 ? (1/stats.pInitial).toFixed(2) : '\u221e';
+  document.getElementById('oddsOut').textContent = stats.pInitial>0 ? `≈ 1 in ${oneIn} hands` : 'never happens with this hand size';
+
+  resultCardM.style.display = 'block';
+  document.getElementById('pctOutM').textContent = (stats.pTotal*100).toFixed(2) + '%';
+  const oneInM = stats.pTotal>0 ? (1/stats.pTotal).toFixed(2) : '\u221e';
+  document.getElementById('fracOutM').textContent = stats.pTotal>0 ? `≈ 1 in ${oneInM} hands` : 'never happens';
+  document.getElementById('mBreakInit').textContent = (stats.pInitial*100).toFixed(2) + '%';
+  document.getElementById('mBreakZero').textContent = (stats.pFromZero*100).toFixed(2) + '%';
+  document.getElementById('mBreakKeep').textContent = (stats.pFromKeep*100).toFixed(2) + '%';
+}
+
+document.getElementById('calcBtn').addEventListener('click', calculate);
+
+renderCats();
+renderCombos();
+</script>
+</body>
+</html>
